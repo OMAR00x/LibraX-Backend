@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Services\WhatsappService;
+use App\Services\OtpService;
 use Illuminate\Http\Request;
 use App\Http\Traits\ResponseTrait;
 use Illuminate\Support\Facades\Auth;
@@ -19,25 +20,10 @@ class PasswordResetController extends Controller
 {
     use ResponseTrait;
 
-    private function getAttemptCount(string $phone): array
-    {
-        $key = "password_reset_attempts:{$phone}";
-        $attempts = (int) Cache::get($key, 0);
-
-        return [
-            'current' => $attempts,
-            'max' => 5,
-            'remaining' => max(0, 5 - $attempts)
-        ];
-    }
-
-    private function incrementAttempts(string $phone): int
-    {
-        $key = "password_reset_attempts:{$phone}";
-        $attempts = (int) Cache::get($key, 0) + 1;
-        Cache::put($key, $attempts, now()->addDay());
-        return $attempts;
-    }
+    public function __construct(
+        protected OtpService $otpService,
+        protected WhatsappService $whatsAppService
+    ) {}
 
     public function sendUserPasswordResetOtp(SendPasswordResetOtpRequest $request)
     {
@@ -49,26 +35,24 @@ class PasswordResetController extends Controller
                 $phone = trim($request->validated()['phone']);
             }
 
-            $attemptInfo = $this->getAttemptCount($phone);
-            if ($attemptInfo['current'] >= 5) {
-                return $this->errorResponse('تم تجاوز الحد اليومي', [
-                    'attempts' => $attemptInfo['current'],
-                    'max_attempts' => $attemptInfo['max'],
-                    'remaining' => $attemptInfo['remaining']
-                ], 429);
+            if ($this->otpService->hasExceededAttempts($phone)) {
+                $attemptInfo = $this->otpService->getAttemptCount($phone);
+                return $this->errorResponse('تم تجاوز الحد اليومي', $attemptInfo, 429);
             }
 
-            $newAttempts = $this->incrementAttempts($phone);
+            $newAttempts = $this->otpService->incrementAttempts($phone);
+            $otp = $this->otpService->generateOtp();
+            
+            $this->otpService->storePasswordResetOtp($otp, $phone);
 
-            $otp = rand(10000, 99999);
-            Cache::put('password_reset_otp_' . $otp, ['phone' => $phone], now()->addMinutes(15));
-
-            $whatsAppResult = (new WhatsappService())->sendOtp($phone, $otp);
-            if (isset($whatsAppResult['success']) && !$whatsAppResult['success']) {
+            $whatsAppResult = $this->whatsAppService->sendOtp($phone, $otp);
+            if (!$whatsAppResult['success']) {
+                $this->otpService->decrementAttempts($phone);
                 return $this->errorResponse($whatsAppResult['error'] ?? 'فشل في إرسال رمز التحقق', [], 400);
             }
 
             return $this->successResponse([
+                'otp' => app()->isLocal() ? $otp : null,
                 'attempts' => $newAttempts,
                 'max_attempts' => 5,
                 'remaining' => max(0, 5 - $newAttempts)
@@ -82,14 +66,14 @@ class PasswordResetController extends Controller
     {
         try {
             $inputOtp = trim($request->validated()['otp']);
-            $resetData = Cache::get('password_reset_otp_' . $inputOtp);
+            $phone = $this->otpService->verifyPasswordResetOtp($inputOtp);
 
-            if (!$resetData) {
+            if (!$phone) {
                 return $this->errorResponse('رمز التحقق غير صحيح أو منتهي الصلاحية', [], 410);
             }
 
-            Cache::put('password_reset_verified_' . $resetData['phone'], ['phone' => $resetData['phone']], now()->addMinutes(10));
-            Cache::forget('password_reset_otp_' . $inputOtp);
+            $this->otpService->storePasswordResetVerification($phone);
+            $this->otpService->deletePasswordResetOtp($inputOtp);
 
             return $this->successResponse([], 'تم التحقق من الرمز بنجاح');
         } catch (\Exception $e) {
@@ -102,9 +86,8 @@ class PasswordResetController extends Controller
         try {
             $validated = $request->validated();
             $phone = $validated['phone'];
-            $resetData = Cache::get('password_reset_verified_' . $phone);
-
-            if (!$resetData) {
+            
+            if (!$this->otpService->isPasswordResetVerified($phone)) {
                 return $this->errorResponse('يجب التحقق من رمز OTP أولاً', [], 403);
             }
 
@@ -117,7 +100,7 @@ class PasswordResetController extends Controller
             $user->password_changed_at = now();
             $user->save();
 
-            Cache::forget('password_reset_verified_' . $phone);
+            $this->otpService->deletePasswordResetVerification($phone);
 
             return $this->successResponse(['user' => $user], 'تم تغيير كلمة المرور بنجاح');
         } catch (\Exception $e) {
@@ -174,18 +157,17 @@ class PasswordResetController extends Controller
                 return $this->errorResponse('هذا الرقم مستخدم بالفعل', ['new_phone' => ['هذا الرقم موجود بالفعل ولا يمكن التغيير إليه']], 422);
             }
 
-            $otp = rand(10000, 99999);
-            Cache::put('phone_change_otp_' . $otp, [
-                'user_id' => $user->id,
-                'new_phone' => $validated['new_phone']
-            ], now()->addMinutes(15));
+            $otp = $this->otpService->generateOtp();
+            $this->otpService->storePhoneChangeOtp($otp, $user->id, $validated['new_phone']);
 
-            $whatsAppResult = (new WhatsappService())->sendOtp($validated['new_phone'], $otp);
-            if (isset($whatsAppResult['success']) && !$whatsAppResult['success']) {
+            $whatsAppResult = $this->whatsAppService->sendOtp($validated['new_phone'], $otp);
+            if (!$whatsAppResult['success']) {
                 return $this->errorResponse($whatsAppResult['error'] ?? 'فشل في إرسال كود التحقق', [], 400);
             }
 
-            return $this->successResponse([], 'تم إرسال كود التحقق بنجاح');
+            return $this->successResponse([
+                'otp' => app()->isLocal() ? $otp : null,
+            ], 'تم إرسال كود التحقق بنجاح');
         } catch (\Exception $e) {
             return $this->errorResponse('خطأ داخلي في السيرفر', ['error' => $e->getMessage()], 500);
         }
@@ -200,21 +182,21 @@ class PasswordResetController extends Controller
             }
 
             $inputOtp = trim($request->validated()['otp']);
-            $otpData = Cache::get('phone_change_otp_' . $inputOtp);
+            $otpData = $this->otpService->getPhoneChangeData($inputOtp);
 
             if (!$otpData || $otpData['user_id'] != $user->id) {
                 return $this->errorResponse('كود التحقق غير صحيح أو منتهي الصلاحية', [], 422);
             }
 
             if (User::where('phone', $otpData['new_phone'])->where('id', '!=', $user->id)->exists()) {
-                Cache::forget('phone_change_otp_' . $inputOtp);
+                $this->otpService->deletePhoneChangeOtp($inputOtp);
                 return $this->errorResponse('رقم الهاتف مستخدم من قبل مستخدم آخر', [], 422);
             }
 
             $user->phone = $otpData['new_phone'];
             $user->save();
 
-            Cache::forget('phone_change_otp_' . $inputOtp);
+            $this->otpService->deletePhoneChangeOtp($inputOtp);
 
             return $this->successResponse([
                 'user' => [

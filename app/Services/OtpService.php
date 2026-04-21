@@ -30,6 +30,17 @@ class OtpService
         return $attempts;
     }
 
+    public function decrementAttempts(string $phone): int
+    {
+        $key = "otp_attempts:{$phone}";
+        $attempts = (int) Cache::get($key, 0);
+        if ($attempts > 0) {
+            $attempts--;
+            Cache::put($key, $attempts, now()->addHours(self::ATTEMPT_EXPIRY_HOURS));
+        }
+        return $attempts;
+    }
+
     public function hasExceededAttempts(string $phone): bool
     {
         return $this->getAttemptCount($phone)['current'] >= self::MAX_ATTEMPTS;
@@ -37,7 +48,7 @@ class OtpService
 
     public function generateOtp(): string
     {
-        return (string) rand(10000, 99999);
+        return (string) rand(100000, 999999);
     }
 
     public function storeOtp(string $otp, string $phone): void
@@ -104,5 +115,35 @@ class OtpService
     public function deletePhoneChangeVerification(int $userId): void
     {
         Cache::forget('phone_change_verified_' . $userId);
+    }
+
+    public function storePasswordResetOtp(string $otp, string $phone): void
+    {
+        Cache::put('password_reset_otp_' . $otp, $phone, now()->addMinutes(self::OTP_EXPIRY_MINUTES));
+    }
+
+    public function verifyPasswordResetOtp(string $otp): ?string
+    {
+        return Cache::get('password_reset_otp_' . $otp);
+    }
+
+    public function deletePasswordResetOtp(string $otp): void
+    {
+        Cache::forget('password_reset_otp_' . $otp);
+    }
+
+    public function storePasswordResetVerification(string $phone): void
+    {
+        Cache::put('password_reset_verified_' . $phone, true, now()->addMinutes(10));
+    }
+
+    public function isPasswordResetVerified(string $phone): bool
+    {
+        return (bool) Cache::get('password_reset_verified_' . $phone, false);
+    }
+
+    public function deletePasswordResetVerification(string $phone): void
+    {
+        Cache::forget('password_reset_verified_' . $phone);
     }
 }

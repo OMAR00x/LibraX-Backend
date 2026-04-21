@@ -15,8 +15,8 @@ class PreRegisterRequest extends BaseRequest
     public function rules(): array
     {
         return [
-            'first_name' => 'required|string|max:255|regex:/^[\p{Arabic}\s]+$/u',
-            'last_name' => 'required|string|max:255|regex:/^[\p{Arabic}\s]+$/u',
+            'first_name' => 'required|string|max:255|regex:/^[\p{Arabic}a-zA-Z\s]+$/u',
+            'last_name' => 'required|string|max:255|regex:/^[\p{Arabic}a-zA-Z\s]+$/u',
             'phone' => ['required', 'string', new PhoneNumberRule()],
             'password' => 'required|string|min:8|confirmed',
         ];
@@ -25,8 +25,8 @@ class PreRegisterRequest extends BaseRequest
     protected function customMessages(): array
     {
         return [
-            'first_name.regex' => 'الاسم الأول يجب أن يحتوي على حروف عربية فقط',
-            'last_name.regex' => 'الاسم الأخير يجب أن يحتوي على حروف عربية فقط',
+            'first_name.regex' => 'الاسم الأول يجب أن يحتوي على حروف فقط',
+            'last_name.regex' => 'الاسم الأخير يجب أن يحتوي على حروف فقط',
             'phone.unique' => 'يوجد حساب مسجل بهذا الرقم بالفعل',
         ];
     }

@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    'sidobe' => [
+        'api_url' => env('SIDOBE_API_URL', 'https://api.sidobe.com/v1'),
+        'secret_key' => env('SIDOBE_SECRET_KEY'),
+        'sender_phone' => env('SIDOBE_SENDER_PHONE'),
+    ],
+
 ];

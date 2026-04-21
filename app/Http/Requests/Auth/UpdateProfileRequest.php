@@ -14,8 +14,8 @@ class UpdateProfileRequest extends BaseRequest
     public function rules(): array
     {
         return [
-            'first_name' => 'sometimes|string|max:255|regex:/^[\p{Arabic}\s]+$/u',
-            'last_name' => 'sometimes|string|max:255|regex:/^[\p{Arabic}\s]+$/u',
+            'first_name' => 'sometimes|string|max:255|regex:/^[\p{Arabic}a-zA-Z\s]+$/u',
+            'last_name' => 'sometimes|string|max:255|regex:/^[\p{Arabic}a-zA-Z\s]+$/u',
             'avatar' => 'sometimes|url|max:500',
             'password' => 'sometimes|string|min:8|confirmed',
         ];
@@ -24,8 +24,8 @@ class UpdateProfileRequest extends BaseRequest
     protected function customMessages(): array
     {
         return [
-            'first_name.regex' => 'الاسم الأول يجب أن يحتوي على حروف عربية فقط',
-            'last_name.regex' => 'الاسم الأخير يجب أن يحتوي على حروف عربية فقط',
+            'first_name.regex' => 'الاسم الأول يجب أن يحتوي على حروف فقط',
+            'last_name.regex' => 'الاسم الأخير يجب أن يحتوي على حروف فقط',
             'password.min' => 'كلمة المرور يجب أن تحتوي على الأقل :min خانات',
             'password.confirmed' => 'كلمة المرور غير متطابقة',
         ];

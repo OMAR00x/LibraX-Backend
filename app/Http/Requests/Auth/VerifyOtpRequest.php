@@ -14,7 +14,7 @@ class VerifyOtpRequest extends BaseRequest
     public function rules(): array
     {
         return [
-            'otp' => 'required|string|size:5',
+            'otp' => 'required|string|size:6',
             'phone' => 'required|string|regex:/^09\d{8}$/'
         ];
     }
@@ -22,7 +22,7 @@ class VerifyOtpRequest extends BaseRequest
     protected function customMessages(): array
     {
         return [
-            'otp.size' => 'كود التحقق يجب أن يكون 5 أرقام',
+            'otp.size' => 'كود التحقق يجب أن يكون 6 أرقام',
             'phone.regex' => 'رقم الجوال يجب أن يبدأ بـ 09 ويتكون من 10 أرقام',
         ];
     }

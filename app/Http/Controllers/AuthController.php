@@ -57,15 +57,20 @@ class AuthController extends Controller
 
             $whatsAppResult = $this->whatsAppService->sendOtp($phone, $otp);
             if (!$whatsAppResult['success']) {
+                $this->otpService->decrementAttempts($phone);
                 return $this->errorResponse($whatsAppResult['error'] ?? 'فشل في إرسال كود التحقق', [], 400);
             }
 
             return $this->successResponse([
+                'otp' => app()->isLocal() ? $otp : null,
                 'attempts' => $newAttempts,
                 'max_attempts' => 5,
                 'remaining' => max(0, 5 - $newAttempts)
             ], 'تم إرسال كود التحقق بنجاح');
         } catch (\Throwable $e) {
+            if (isset($phone)) {
+                $this->otpService->decrementAttempts($phone);
+            }
             \Log::error('Registration error', ['error' => $e->getMessage(), 'line' => $e->getLine()]);
             return $this->errorResponse('خطأ داخلي في الخادم', [], 500);
         }
@@ -94,15 +99,20 @@ class AuthController extends Controller
 
         $whatsAppResult = $this->whatsAppService->sendOtp($phone, $otp);
         if (!$whatsAppResult['success']) {
+            $this->otpService->decrementAttempts($phone);
             return $this->errorResponse($whatsAppResult['error'] ?? 'فشل في إرسال كود التحقق', [], 400);
         }
 
         return $this->successResponse([
+            'otp' => app()->isLocal() ? $otp : null,
             'attempts' => $newAttempts,
             'max_attempts' => 5,
             'remaining' => max(0, 5 - $newAttempts)
         ], 'تم إعادة إرسال كود التحقق بنجاح');
     } catch (\Exception $e) {
+        if (isset($phone)) {
+            $this->otpService->decrementAttempts($phone);
+        }
         \Log::error('OTP resend error', ['error' => $e->getMessage()]);
         return $this->errorResponse('خطأ في إعادة الإرسال', [], 500);
     }
@@ -166,15 +176,23 @@ public function login(LoginRequest $request)
         $validated = $request->validated();
         $user = $this->authService->findByPhone($validated['phone']);
 
-        if (!$user || !$this->authService->verifyPassword($user, $validated['password'])) {
+        if (!$user) {
+            \Log::error('Login failed: User not found', ['phone' => $validated['phone']]);
+            return $this->errorResponse('الرقم أو كلمة المرور غير صحيحة', [], 401);
+        }
+        
+        if (!$this->authService->verifyPassword($user, $validated['password'])) {
+            \Log::error('Login failed: Wrong password', ['phone' => $validated['phone']]);
             return $this->errorResponse('الرقم أو كلمة المرور غير صحيحة', [], 401);
         }
 
         if (!$user->is_active) {
+            \Log::error('Login failed: User inactive', ['phone' => $validated['phone']]);
             return $this->errorResponse('حسابك غير فعال، يرجى التواصل مع الإدارة', [], 403);
         }
 
         $token = $this->authService->createToken($user);
+        \Log::info('Login successful', ['phone' => $validated['phone']]);
 
         return $this->successResponse(['user' => new UserResource($user), 'token' => $token], 'تم تسجيل الدخول بنجاح');
     } catch (\Exception $e) {
