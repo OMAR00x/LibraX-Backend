@@ -1,0 +1,70 @@
+=== Quick Setup ===
+
+1. Install
+composer install
+cp .env.example .env
+php artisan key:generate
+
+2. Database (.env)
+DB_DATABASE=librax
+DB_USERNAME=root
+DB_PASSWORD=your_password
+
+3. Run
+php artisan migrate --seed
+php artisan storage:link
+php artisan serve
+
+4. Test
+curl -X POST http://localhost:8000/api/login \
+  -H "Content-Type: application/json" \
+  -d '{"phone":"0934567890","password":"password123"}'
+
+=== Files Created ===
+
+Migrations:
+- create_categories_table
+- create_books_table
+- create_favorites_table
+- add_library_name_to_users_table
+- create_orders_table
+- create_wallet_transactions_table
+- create_charge_requests_table
+
+Models:
+- Category, Book, Favorite
+- Order, WalletTransaction, ChargeRequest
+
+Controllers:
+Customer:
+- HomeController, BookController, CategoryController
+- FavoriteController, OrderController, WalletController
+
+Library Owner:
+- LibraryBookController, LibraryOrderController, LibraryStatisticsController
+
+Resources:
+- BookResource, BookListResource, CategoryResource
+- OrderResource, WalletTransactionResource, ChargeRequestResource
+
+Seeders:
+- CategorySeeder (12 categories)
+- DemoDataSeeder (users + books)
+- OrdersSeeder (orders + transactions)
+
+=== Screens Complete ===
+
+✅ CUSTOMER
+- Home
+- Purchase History
+- Wallet
+- Favorites
+- Profile
+- Notifications
+
+✅ LIBRARY OWNER
+- Orders Management (accept/reject)
+- Books Management (CRUD)
+- Statistics
+- Profile
+- Wallet (view only)

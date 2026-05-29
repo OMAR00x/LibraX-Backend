@@ -1,0 +1,139 @@
+=== Librax Customer APIs ===
+
+✅ HOME
+GET    /api/home
+GET    /api/home/search?query=...
+GET    /api/home/filter?category_id=...&min_price=...&max_price=...
+
+✅ CATEGORIES
+GET    /api/categories
+GET    /api/categories/{id}
+
+✅ BOOKS
+GET    /api/books/{id}
+GET    /api/books/category/{categoryId}
+
+✅ FAVORITES
+GET    /api/favorites
+POST   /api/favorites              {book_id}
+POST   /api/favorites/toggle       {book_id}
+DELETE /api/favorites/{bookId}
+
+✅ ORDERS (Purchase History)
+GET    /api/orders?status=...
+POST   /api/orders                 {book_id, payment_method: wallet|cash}
+GET    /api/orders/{id}
+POST   /api/orders/{id}/cancel     {cancellation_reason}
+POST   /api/orders/{id}/rate       {rating: 1-5, review}
+
+✅ WALLET
+GET    /api/wallet
+GET    /api/wallet/transactions?type=...
+POST   /api/wallet/charge-request  {amount, transaction_number, receipt_image}
+GET    /api/wallet/charge-requests
+GET    /api/wallet/charge-requests/{id}
+
+✅ NOTIFICATIONS
+GET    /api/notifications
+GET    /api/notifications/unread-count
+POST   /api/notifications/{id}/read
+POST   /api/notifications/read-all
+DELETE /api/notifications/{id}
+DELETE /api/notifications
+
+✅ PROFILE
+GET    /api/auth/check-status
+PUT    /api/auth/profile
+POST   /api/password/change
+
+=== Librax Library Owner APIs ===
+
+✅ BOOKS MANAGEMENT
+GET    /api/library/books?category_id=...&search=...
+POST   /api/library/books          {category_id, title, author, description, price, quantity, cover_image, pdf_file, audio_file}
+GET    /api/library/books/{id}
+POST   /api/library/books/{id}     {same as create - for update with files}
+DELETE /api/library/books/{id}
+
+✅ ORDERS MANAGEMENT
+GET    /api/library/orders?status=...
+GET    /api/library/orders/{id}
+POST   /api/library/orders/{id}/accept
+POST   /api/library/orders/{id}/reject     {rejection_reason}
+POST   /api/library/orders/{id}/complete
+
+✅ STATISTICS
+GET    /api/library/statistics
+Response: {
+  summary: {total_books, total_copies, total_sales, total_revenue, pending_orders, wallet_balance},
+  orders_stats: {total, pending, accepted, completed, rejected, cancelled},
+  top_selling_books: [...],
+  top_rated_books: [...]
+}
+
+=== Order Status ===
+pending → accepted → completed (can rate)
+pending → rejected
+pending → cancelled (by customer)
+
+=== Payment Methods ===
+cash    - نقدي عند الاستلام
+wallet  - عبر المحفظة
+
+=== Wallet Transaction Types ===
+charge   - شحن رصيد
+purchase - شراء كتاب
+refund   - استرجاع
+earning  - ربح (لصاحب المكتبة)
+
+=== Test Accounts ===
+Customer: 0934567890 / password123
+Library:  0923456789 / password123
+Admin:    0911111111 / admin123
+
+=== Library Owner Screens ===
+✅ Orders (طلباتي) - view, accept, reject, complete
+✅ My Books (كتبي) - list, add, edit, delete
+✅ Statistics (إحصائيات) - revenue, sales, books count
+✅ Profile - same as customer
+✅ Wallet - view balance only (no charge request)
+
+=== Admin APIs (للويب React) ===
+
+✅ USERS MANAGEMENT
+GET    /api/admin/users?role=...&search=...
+POST   /api/admin/users            {first_name, last_name, phone, password, role, library_name, ...}
+GET    /api/admin/users/{id}
+PUT    /api/admin/users/{id}       {first_name, last_name, phone, library_name, wallet_balance, is_active, ...}
+DELETE /api/admin/users/{id}
+
+✅ BOOKS MANAGEMENT
+GET    /api/admin/books?category_id=...&library_owner_id=...&search=...
+GET    /api/admin/books/{id}
+PUT    /api/admin/books/{id}       {category_id, title, author, price, quantity, is_active, ...}
+DELETE /api/admin/books/{id}
+
+✅ CHARGE REQUESTS MANAGEMENT
+GET    /api/admin/charge-requests?status=...
+GET    /api/admin/charge-requests/{id}
+POST   /api/admin/charge-requests/{id}/approve    {amount (optional)}
+POST   /api/admin/charge-requests/{id}/reject     {rejection_reason}
+
+✅ SYSTEM STATISTICS
+GET    /api/admin/statistics
+Response: {
+  users: {total, customers, library_owners, admins, active},
+  books: {total, active, total_copies, total_sales},
+  orders: {total, pending, accepted, completed, rejected, cancelled},
+  wallet: {total_balance, pending_charges, approved_charges, rejected_charges},
+  total_revenue,
+  top_libraries: [...],
+  top_books: [...]
+}
+
+=== Admin Screens ===
+✅ Users Management - list, add, edit, delete
+✅ Books Management - list, view, edit, delete
+✅ Charge Requests - list, approve, reject
+✅ Statistics - complete system stats
+✅ Profile - same as others

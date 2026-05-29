@@ -21,6 +21,11 @@ class User extends Authenticatable
         'password',
         'is_active',
         'role',
+        'library_name',
+        'library_address',
+        'library_latitude',
+        'library_longitude',
+        'wallet_balance',
     ];
 
     // ✅ لا حاجة لـ $guarded عند استخدام $fillable
@@ -36,6 +41,9 @@ class User extends Authenticatable
         return [
             'password' => 'hashed',
             'is_active' => 'boolean',
+            'wallet_balance' => 'decimal:2',
+            'library_latitude' => 'decimal:8',
+            'library_longitude' => 'decimal:8',
         ];
     }
 
@@ -58,6 +66,51 @@ class User extends Authenticatable
     public function fcmTokens()
     {
         return $this->hasMany(FcmToken::class);
+    }
+
+    public function books()
+    {
+        return $this->hasMany(Book::class, 'library_owner_id');
+    }
+
+    public function favorites()
+    {
+        return $this->hasMany(Favorite::class);
+    }
+
+    public function orders()
+    {
+        return $this->hasMany(Order::class, 'customer_id');
+    }
+
+    public function libraryOrders()
+    {
+        return $this->hasMany(Order::class, 'library_owner_id');
+    }
+
+    public function walletTransactions()
+    {
+        return $this->hasMany(WalletTransaction::class);
+    }
+
+    public function chargeRequests()
+    {
+        return $this->hasMany(ChargeRequest::class);
+    }
+
+    public function isCustomer()
+    {
+        return $this->role === 'customer';
+    }
+
+    public function isLibraryOwner()
+    {
+        return $this->role === 'library_owner';
+    }
+
+    public function isAdmin()
+    {
+        return $this->role === 'admin';
     }
 
 }
