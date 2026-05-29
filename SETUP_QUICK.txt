@@ -68,3 +68,10 @@ Seeders:
 - Statistics
 - Profile
 - Wallet (view only)
+
+✅ ADMIN
+- Users Management (CRUD)
+- Books Management (view/edit/delete)
+- Charge Requests (approve/reject)
+- System Statistics
+- Profile

@@ -18,7 +18,7 @@ class WalletTransactionResource extends JsonResource
             'balance_after' => (float) $this->balance_after,
             'description' => $this->description,
             'order_id' => $this->order_id,
-            'created_at' => $this->created_at->toISOString(),
+            'created_at' => $this->created_at?->toIso8601String(),
             'date' => $this->created_at->format('d/m/Y'),
             'time' => $this->created_at->format('H:i'),
         ];

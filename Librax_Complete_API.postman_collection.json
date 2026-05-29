@@ -623,6 +623,237 @@
           }
         }
       ]
+    },
+    {
+      "name": "🛠️ Admin",
+      "item": [
+        {
+          "name": "Users Management",
+          "item": [
+            {
+              "name": "Get All Users",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {"key": "Accept", "value": "application/json"},
+                  {"key": "Authorization", "value": "Bearer {{token}}"}
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/users?role=customer",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "users"],
+                  "query": [
+                    {"key": "role", "value": "customer", "disabled": true},
+                    {"key": "search", "value": "", "disabled": true}
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Create User",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {"key": "Accept", "value": "application/json"},
+                  {"key": "Authorization", "value": "Bearer {{token}}"},
+                  {"key": "Content-Type", "value": "application/json"}
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"first_name\": \"أحمد\",\n  \"last_name\": \"محمد\",\n  \"phone\": \"0977777777\",\n  \"password\": \"password123\",\n  \"role\": \"customer\",\n  \"wallet_balance\": 0,\n  \"is_active\": true\n}",
+                  "options": {"raw": {"language": "json"}}
+                },
+                "url": {"raw": "{{base_url}}/admin/users", "host": ["{{base_url}}"], "path": ["admin", "users"]}
+              }
+            },
+            {
+              "name": "Get User Details",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {"key": "Accept", "value": "application/json"},
+                  {"key": "Authorization", "value": "Bearer {{token}}"}
+                ],
+                "url": {"raw": "{{base_url}}/admin/users/1", "host": ["{{base_url}}"], "path": ["admin", "users", "1"]}
+              }
+            },
+            {
+              "name": "Update User",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {"key": "Accept", "value": "application/json"},
+                  {"key": "Authorization", "value": "Bearer {{token}}"},
+                  {"key": "Content-Type", "value": "application/json"}
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"first_name\": \"أحمد\",\n  \"is_active\": false\n}",
+                  "options": {"raw": {"language": "json"}}
+                },
+                "url": {"raw": "{{base_url}}/admin/users/1", "host": ["{{base_url}}"], "path": ["admin", "users", "1"]}
+              }
+            },
+            {
+              "name": "Delete User",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {"key": "Accept", "value": "application/json"},
+                  {"key": "Authorization", "value": "Bearer {{token}}"}
+                ],
+                "url": {"raw": "{{base_url}}/admin/users/1", "host": ["{{base_url}}"], "path": ["admin", "users", "1"]}
+              }
+            }
+          ]
+        },
+        {
+          "name": "Books Management",
+          "item": [
+            {
+              "name": "Get All Books",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {"key": "Accept", "value": "application/json"},
+                  {"key": "Authorization", "value": "Bearer {{token}}"}
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/books",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "books"],
+                  "query": [
+                    {"key": "category_id", "value": "1", "disabled": true},
+                    {"key": "library_owner_id", "value": "2", "disabled": true},
+                    {"key": "search", "value": "", "disabled": true}
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Book Details",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {"key": "Accept", "value": "application/json"},
+                  {"key": "Authorization", "value": "Bearer {{token}}"}
+                ],
+                "url": {"raw": "{{base_url}}/admin/books/1", "host": ["{{base_url}}"], "path": ["admin", "books", "1"]}
+              }
+            },
+            {
+              "name": "Update Book",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {"key": "Accept", "value": "application/json"},
+                  {"key": "Authorization", "value": "Bearer {{token}}"},
+                  {"key": "Content-Type", "value": "application/json"}
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"price\": 30,\n  \"quantity\": 20,\n  \"is_active\": true\n}",
+                  "options": {"raw": {"language": "json"}}
+                },
+                "url": {"raw": "{{base_url}}/admin/books/1", "host": ["{{base_url}}"], "path": ["admin", "books", "1"]}
+              }
+            },
+            {
+              "name": "Delete Book",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {"key": "Accept", "value": "application/json"},
+                  {"key": "Authorization", "value": "Bearer {{token}}"}
+                ],
+                "url": {"raw": "{{base_url}}/admin/books/1", "host": ["{{base_url}}"], "path": ["admin", "books", "1"]}
+              }
+            }
+          ]
+        },
+        {
+          "name": "Charge Requests",
+          "item": [
+            {
+              "name": "Get All Charge Requests",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {"key": "Accept", "value": "application/json"},
+                  {"key": "Authorization", "value": "Bearer {{token}}"}
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/charge-requests?status=pending",
+                  "host": ["{{base_url}}"],
+                  "path": ["admin", "charge-requests"],
+                  "query": [{"key": "status", "value": "pending", "disabled": true}]
+                }
+              }
+            },
+            {
+              "name": "Get Charge Request Details",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {"key": "Accept", "value": "application/json"},
+                  {"key": "Authorization", "value": "Bearer {{token}}"}
+                ],
+                "url": {"raw": "{{base_url}}/admin/charge-requests/1", "host": ["{{base_url}}"], "path": ["admin", "charge-requests", "1"]}
+              }
+            },
+            {
+              "name": "Approve Charge Request",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {"key": "Accept", "value": "application/json"},
+                  {"key": "Authorization", "value": "Bearer {{token}}"},
+                  {"key": "Content-Type", "value": "application/json"}
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"amount\": 50000\n}",
+                  "options": {"raw": {"language": "json"}}
+                },
+                "url": {"raw": "{{base_url}}/admin/charge-requests/1/approve", "host": ["{{base_url}}"], "path": ["admin", "charge-requests", "1", "approve"]}
+              }
+            },
+            {
+              "name": "Reject Charge Request",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {"key": "Accept", "value": "application/json"},
+                  {"key": "Authorization", "value": "Bearer {{token}}"},
+                  {"key": "Content-Type", "value": "application/json"}
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"rejection_reason\": \"رقم المعاملة غير صحيح\"\n}",
+                  "options": {"raw": {"language": "json"}}
+                },
+                "url": {"raw": "{{base_url}}/admin/charge-requests/1/reject", "host": ["{{base_url}}"], "path": ["admin", "charge-requests", "1", "reject"]}
+              }
+            }
+          ]
+        },
+        {
+          "name": "Statistics",
+          "item": [
+            {
+              "name": "Get System Statistics",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {"key": "Accept", "value": "application/json"},
+                  {"key": "Authorization", "value": "Bearer {{token}}"}
+                ],
+                "url": {"raw": "{{base_url}}/admin/statistics", "host": ["{{base_url}}"], "path": ["admin", "statistics"]}
+              }
+            }
+          ]
+        }
+      ]
     }
   ]
 }

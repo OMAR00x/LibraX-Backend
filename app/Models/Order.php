@@ -19,8 +19,6 @@ class Order extends Model
         'status',
         'rejection_reason',
         'cancellation_reason',
-        'rating',
-        'review',
         'accepted_at',
         'rejected_at',
         'cancelled_at',

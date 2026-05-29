@@ -11,12 +11,12 @@ class ChargeRequestResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'user' => [
+            'user' => $this->user ? [
                 'id' => $this->user->id,
                 'name' => $this->user->first_name . ' ' . $this->user->last_name,
                 'phone' => $this->user->phone,
                 'role' => $this->user->role,
-            ],
+            ] : null,
             'amount' => (float) $this->amount,
             'transaction_number' => $this->transaction_number,
             'receipt_image' => $this->receipt_image ? url('storage/' . $this->receipt_image) : null,
@@ -27,9 +27,9 @@ class ChargeRequestResource extends JsonResource
                 'id' => $this->approvedBy->id,
                 'name' => $this->approvedBy->first_name . ' ' . $this->approvedBy->last_name,
             ] : null,
-            'approved_at' => $this->approved_at?->toISOString(),
-            'rejected_at' => $this->rejected_at?->toISOString(),
-            'created_at' => $this->created_at->toISOString(),
+            'approved_at' => $this->approved_at?->toIso8601String(),
+            'rejected_at' => $this->rejected_at?->toIso8601String(),
+            'created_at' => $this->created_at?->toIso8601String(),
         ];
     }
 

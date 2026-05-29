@@ -16,7 +16,7 @@ class CategoryResource extends JsonResource
             'icon' => $this->icon ? url('storage/' . $this->icon) : null,
             'is_active' => $this->is_active,
             'books_count' => $this->whenCounted('books'),
-            'created_at' => $this->created_at->toISOString(),
+            'created_at' => $this->created_at?->toIso8601String(),
         ];
     }
 }

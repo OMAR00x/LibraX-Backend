@@ -94,7 +94,7 @@ class AdminStatisticsController extends Controller
                         'title' => $book->title,
                         'author' => $book->author,
                         'total_sales' => $book->total_sales,
-                        'library_name' => $book->libraryOwner->library_name,
+                        'library_name' => $book->libraryOwner ? $book->libraryOwner->library_name : null,
                         'cover_image' => $book->cover_image ? url('storage/' . $book->cover_image) : null,
                     ];
                 }),

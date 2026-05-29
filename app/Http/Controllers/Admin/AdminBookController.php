@@ -120,23 +120,50 @@ class AdminBookController extends Controller
     {
         $book = Book::findOrFail($id);
 
-        // حذف الملفات
-        if ($book->cover_image) {
-            Storage::disk('public')->delete($book->cover_image);
-        }
-        if ($book->pdf_file) {
-            Storage::disk('public')->delete($book->pdf_file);
-        }
-        if ($book->audio_file) {
-            Storage::disk('public')->delete($book->audio_file);
+        // التحقق من وجود طلبات نشطة
+        $hasActiveOrders = Order::where('book_id', $id)
+            ->whereIn('status', ['pending', 'accepted'])
+            ->exists();
+
+        if ($hasActiveOrders) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'لا يمكن حذف الكتاب لوجود طلبات نشطة عليه',
+                'message_en' => 'Cannot delete book with active orders',
+            ], 409);
         }
 
-        $book->delete();
+        DB::beginTransaction();
+        try {
+            // حذف من قاعدة البيانات
+            $book->delete();
 
-        return response()->json([
-            'status' => 'success',
-            'message' => 'تم حذف الكتاب بنجاح',
-            'message_en' => 'Book deleted successfully',
-        ]);
+            DB::commit();
+
+            // حذف الملفات بعد نجاح الـ commit
+            if ($book->cover_image) {
+                Storage::disk('public')->delete($book->cover_image);
+            }
+            if ($book->pdf_file) {
+                Storage::disk('public')->delete($book->pdf_file);
+            }
+            if ($book->audio_file) {
+                Storage::disk('public')->delete($book->audio_file);
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'تم حذف الكتاب بنجاح',
+                'message_en' => 'Book deleted successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'status' => 'error',
+                'message' => 'حدث خطأ أثناء حذف الكتاب',
+                'message_en' => 'Error deleting book',
+            ], 500);
+        }
     }
 }

@@ -98,8 +98,8 @@ class AdminChargeRequestController extends Controller
             $chargeRequest->approved_at = now();
             $chargeRequest->save();
 
-            // إضافة المبلغ للمحفظة
-            $user = $chargeRequest->user;
+            // إضافة المبلغ للمحفظة بشكل atomic مع row lock
+            $user = User::where('id', $chargeRequest->user_id)->lockForUpdate()->first();
             $balanceBefore = $user->wallet_balance;
             $user->wallet_balance += $approvedAmount;
             $user->save();

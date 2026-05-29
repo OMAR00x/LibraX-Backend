@@ -17,9 +17,6 @@ class ChargeRequest extends Model
         'receipt_image',
         'status',
         'rejection_reason',
-        'approved_by',
-        'approved_at',
-        'rejected_at',
     ];
 
     protected $casts = [

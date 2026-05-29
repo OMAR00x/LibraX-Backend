@@ -148,11 +148,10 @@ class AdminUserController extends Controller
             'library_address',
             'library_latitude',
             'library_longitude',
-            'wallet_balance',
             'is_active',
         ]);
 
-        if ($request->password) {
+        if ($request->filled('password')) {
             $data['password'] = Hash::make($request->password);
         }
 
@@ -185,6 +184,48 @@ class AdminUserController extends Controller
             ], 400);
         }
 
+        // التحقق من الرصيد والطلبات للزبائن
+        if ($user->role === 'customer') {
+            if ($user->wallet_balance > 0) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'لا يمكن حذف زبون لديه رصيد في المحفظة',
+                    'message_en' => 'Cannot delete customer with wallet balance',
+                ], 400);
+            }
+
+            $hasPendingOrders = $user->orders()->whereIn('status', ['pending', 'accepted'])->exists();
+            if ($hasPendingOrders) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'لا يمكن حذف زبون لديه طلبات نشطة',
+                    'message_en' => 'Cannot delete customer with active orders',
+                ], 400);
+            }
+        }
+
+        // التحقق من الكتب لأصحاب المكتبات
+        if ($user->role === 'library_owner') {
+            $hasBooks = $user->books()->exists();
+            if ($hasBooks) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'لا يمكن حذف صاحب مكتبة لديه كتب. يرجى حذف الكتب أولاً',
+                    'message_en' => 'Cannot delete library owner with books',
+                ], 400);
+            }
+
+            $hasPendingOrders = $user->libraryOrders()->whereIn('status', ['pending', 'accepted'])->exists();
+            if ($hasPendingOrders) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'لا يمكن حذف صاحب مكتبة لديه طلبات نشطة',
+                    'message_en' => 'Cannot delete library owner with active orders',
+                ], 400);
+            }
+        }
+
+        // Soft delete
         $user->delete();
 
         return response()->json([

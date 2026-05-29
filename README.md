@@ -97,10 +97,10 @@ php artisan serve
 
 ## 📚 التوثيق
 
-- **[QUICK_START.md](QUICK_START.md)** - دليل البدء السريع
-- **[SETUP_INSTRUCTIONS.md](SETUP_INSTRUCTIONS.md)** - تعليمات التثبيت المفصلة
-- **[API_DOCUMENTATION_HOME.md](API_DOCUMENTATION_HOME.md)** - توثيق كامل للـ API
-- **[Postman Collection](Librax_Home_API.postman_collection.json)** - مجموعة Postman للاختبار
+- **[SETUP_QUICK.txt](SETUP_QUICK.txt)** - دليل البدء السريع
+- **[PROJECT_COMPLETE.txt](PROJECT_COMPLETE.txt)** - دليل كامل للمشروع
+- **[CUSTOMER_APIS_SUMMARY.txt](CUSTOMER_APIS_SUMMARY.txt)** - ملخص سريع للـ APIs
+- **[Postman Collection](Librax_Complete_API.postman_collection.json)** - مجموعة Postman للاختبار
 
 ## 🧪 حسابات تجريبية
 
@@ -137,32 +137,32 @@ php artisan serve
 - [x] Postman Collection
 - [x] Demo Data Seeder
 
-### Phase 2: Orders (قيد التطوير)
-- [ ] Orders System
-- [ ] Payment Methods
-- [ ] Order Status Management
-- [ ] Ratings & Reviews
+### Phase 2: Orders ✅ مكتمل
+- [x] Orders System
+- [x] Payment Methods
+- [x] Order Status Management
+- [x] Ratings & Reviews
 
-### Phase 3: Wallet (قيد التطوير)
-- [ ] Wallet System
-- [ ] Charge Requests
-- [ ] Transaction History
+### Phase 3: Wallet ✅ مكتمل
+- [x] Wallet System
+- [x] Charge Requests
+- [x] Transaction History
 
-### Phase 4: Library Owner Dashboard (قيد التطوير)
-- [ ] Books Management
-- [ ] Orders Management
-- [ ] Statistics Dashboard
+### Phase 4: Library Owner Dashboard ✅ مكتمل
+- [x] Books Management
+- [x] Orders Management
+- [x] Statistics Dashboard
 
-### Phase 5: Admin Dashboard (قيد التطوير)
-- [ ] Users Management
-- [ ] Books Management
-- [ ] Charge Requests Management
-- [ ] System Statistics
+### Phase 5: Admin Dashboard ✅ مكتمل
+- [x] Users Management
+- [x] Books Management
+- [x] Charge Requests Management
+- [x] System Statistics
 
 ## 🧪 الاختبار
 
 ### باستخدام Postman
-استورد ملف `Librax_Home_API.postman_collection.json`
+استورد ملف `Librax_Complete_API.postman_collection.json`
 
 ### باستخدام cURL
 ```bash
