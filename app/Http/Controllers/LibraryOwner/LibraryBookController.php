@@ -83,17 +83,48 @@ class LibraryBookController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'category_id' => 'required|exists:categories,id',
+            'category_id' => 'nullable|exists:categories,id',
+            'category_name' => 'nullable|string|max:255',
+            'category_icon' => 'nullable|string|max:255',
             'title' => 'required|string|max:255',
             'author' => 'required|string|max:255',
             'description' => 'nullable|string|max:2000',
             'price' => 'required|numeric|min:0',
             'quantity' => 'required|integer|min:0',
+            'page_count' => 'nullable|integer|min:0',
+            'parts_count' => 'nullable|integer|min:1',
             'cover_image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
             'pdf_file' => 'nullable|mimes:pdf|max:10240',
             'audio_file' => 'nullable|mimes:mp3,wav|max:20480',
+            'pdf_access' => 'nullable|string|in:free,purchase',
+            'audio_access' => 'nullable|string|in:free,purchase',
             'is_active' => 'nullable|boolean',
         ]);
+
+        if (!$request->category_id && !$request->category_name) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'يجب اختيار صنف أو كتابة صنف جديد',
+                'message_en' => 'Category selection or new category name is required',
+            ], 422);
+        }
+
+        $categoryId = $request->category_id;
+        if ($request->category_name) {
+            $category = \App\Models\Category::where('name_ar', $request->category_name)
+                ->orWhere('name_en', $request->category_name)
+                ->first();
+
+            if (!$category) {
+                $category = \App\Models\Category::create([
+                    'name_ar' => $request->category_name,
+                    'name_en' => $request->category_name,
+                    'icon' => $request->category_icon ?? '58145', // Default menu_book icon codepoint
+                    'is_active' => true,
+                ]);
+            }
+            $categoryId = $category->id;
+        }
 
         $user = $request->user();
 
@@ -115,15 +146,19 @@ class LibraryBookController extends Controller
 
         $book = Book::create([
             'library_owner_id' => $user->id,
-            'category_id' => $request->category_id,
+            'category_id' => $categoryId,
             'title' => $request->title,
             'author' => $request->author,
             'description' => $request->description,
             'price' => $request->price,
             'quantity' => $request->quantity,
+            'page_count' => $request->page_count,
+            'parts_count' => $request->parts_count ?? 1,
             'cover_image' => $coverPath,
             'pdf_file' => $pdfPath,
             'audio_file' => $audioPath,
+            'pdf_access' => $request->pdf_access ?? 'purchase',
+            'audio_access' => $request->audio_access ?? 'purchase',
             'is_active' => $request->is_active ?? true,
         ]);
 
@@ -145,16 +180,39 @@ class LibraryBookController extends Controller
     {
         $request->validate([
             'category_id' => 'nullable|exists:categories,id',
+            'category_name' => 'nullable|string|max:255',
+            'category_icon' => 'nullable|string|max:255',
             'title' => 'nullable|string|max:255',
             'author' => 'nullable|string|max:255',
             'description' => 'nullable|string|max:2000',
             'price' => 'nullable|numeric|min:0',
             'quantity' => 'nullable|integer|min:0',
+            'page_count' => 'nullable|integer|min:0',
+            'parts_count' => 'nullable|integer|min:1',
             'cover_image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
             'pdf_file' => 'nullable|mimes:pdf|max:10240',
             'audio_file' => 'nullable|mimes:mp3,wav|max:20480',
+            'pdf_access' => 'nullable|string|in:free,purchase',
+            'audio_access' => 'nullable|string|in:free,purchase',
             'is_active' => 'nullable|boolean',
         ]);
+
+        $categoryId = $request->category_id;
+        if ($request->category_name) {
+            $category = \App\Models\Category::where('name_ar', $request->category_name)
+                ->orWhere('name_en', $request->category_name)
+                ->first();
+
+            if (!$category) {
+                $category = \App\Models\Category::create([
+                    'name_ar' => $request->category_name,
+                    'name_en' => $request->category_name,
+                    'icon' => $request->category_icon ?? '58145',
+                    'is_active' => true,
+                ]);
+            }
+            $categoryId = $category->id;
+        }
 
         $user = $request->user();
 
@@ -183,15 +241,26 @@ class LibraryBookController extends Controller
         }
 
         // تحديث البيانات الأخرى
-        $book->update($request->only([
-            'category_id',
+        $updateData = $request->only([
             'title',
             'author',
             'description',
             'price',
             'quantity',
             'is_active',
-        ]));
+            'pdf_access',
+            'audio_access',
+            'page_count',
+            'parts_count',
+        ]);
+
+        if ($categoryId) {
+            $updateData['category_id'] = $categoryId;
+        } elseif ($request->has('category_id')) {
+            $updateData['category_id'] = $request->category_id;
+        }
+
+        $book->update($updateData);
 
         return response()->json([
             'status' => 'success',

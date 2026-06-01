@@ -11,6 +11,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\WalletController;
+use App\Http\Controllers\BookInteractionController;
 
 
 Route::get('/', function () {
@@ -118,6 +119,22 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/wallet/charge-requests', [WalletController::class, 'chargeRequests']);
     Route::get('/wallet/charge-requests/{id}', [WalletController::class, 'showChargeRequest']);
 
+    // AI Reading Assistant Proxy Route
+    Route::post('/ai/chat', [\App\Http\Controllers\AIChatController::class, 'chat']);
+
+    // E-Book Reader Interactions & Statistics
+    Route::get('/books/{id}/interactions', [BookInteractionController::class, 'getInteractions']);
+    Route::post('/books/{id}/progress', [BookInteractionController::class, 'updateProgress']);
+    Route::post('/books/{id}/highlights', [BookInteractionController::class, 'storeHighlight']);
+    Route::delete('/books/highlights/{id}', [BookInteractionController::class, 'destroyHighlight']);
+    Route::post('/books/{id}/notes', [BookInteractionController::class, 'storeNote']);
+    Route::delete('/books/notes/{id}', [BookInteractionController::class, 'destroyNote']);
+    Route::post('/books/{id}/quotes', [BookInteractionController::class, 'storeQuote']);
+    Route::delete('/books/quotes/{id}', [BookInteractionController::class, 'destroyQuote']);
+    Route::get('/books/{id}/reviews', [BookInteractionController::class, 'getReviews']);
+    Route::post('/books/{id}/reviews', [BookInteractionController::class, 'storeReview']);
+    Route::get('/reader/statistics', [BookInteractionController::class, 'getStatistics']);
+
     /*
     |--------------------------------------------------------------------------
     | Library Owner Routes (أصحاب المكتبات)
@@ -126,6 +143,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Library Books Management
     Route::prefix('library')->middleware('check.account')->group(function () {
+        Route::post('/profile', [AuthController::class, 'updateLibraryProfile']);
         Route::get('/books', [\App\Http\Controllers\LibraryOwner\LibraryBookController::class, 'index']);
         Route::post('/books', [\App\Http\Controllers\LibraryOwner\LibraryBookController::class, 'store']);
         Route::get('/books/{id}', [\App\Http\Controllers\LibraryOwner\LibraryBookController::class, 'show']);

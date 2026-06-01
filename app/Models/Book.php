@@ -18,9 +18,13 @@ class Book extends Model
         'description',
         'price',
         'quantity',
+        'page_count',
+        'parts_count',
         'cover_image',
         'pdf_file',
         'audio_file',
+        'pdf_access',
+        'audio_access',
         'average_rating',
         'total_ratings',
         'total_sales',
@@ -31,6 +35,8 @@ class Book extends Model
         'price' => 'decimal:2',
         'average_rating' => 'decimal:2',
         'is_active' => 'boolean',
+        'page_count' => 'integer',
+        'parts_count' => 'integer',
     ];
 
     public function libraryOwner()

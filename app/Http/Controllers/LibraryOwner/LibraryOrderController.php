@@ -80,7 +80,7 @@ class LibraryOrderController extends Controller
     {
         $user = $request->user();
 
-        $order = Order::with('book')->where('library_owner_id', $user->id)->findOrFail($id);
+        $order = Order::with(['book', 'customer'])->where('library_owner_id', $user->id)->findOrFail($id);
 
         if ($order->status !== 'pending') {
             return response()->json([
@@ -92,13 +92,43 @@ class LibraryOrderController extends Controller
 
         DB::beginTransaction();
         try {
+            if ($order->payment_method === 'wallet') {
+                $customer = $order->customer;
+                if ($customer->wallet_balance < $order->price) {
+                    DB::rollBack();
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'رصيد محفظة الزبون غير كافٍ لإتمام عملية الشراء',
+                        'message_en' => 'Customer wallet balance is insufficient to complete the purchase',
+                    ], 400);
+                }
+            }
+
             $order->status = 'accepted';
             $order->accepted_at = now();
             $order->save();
 
-            // إضافة الربح لصاحب المكتبة إذا كان الدفع عبر المحفظة
+            // الدفع والتوزيع المالي عبر المحفظة
             if ($order->payment_method === 'wallet') {
-                $balanceBefore = $user->wallet_balance;
+                $customer = $order->customer;
+
+                // 1. الخصم من محفظة الزبون
+                $customerBalanceBefore = $customer->wallet_balance;
+                $customer->wallet_balance -= $order->price;
+                $customer->save();
+
+                WalletTransaction::create([
+                    'user_id' => $customer->id,
+                    'type' => 'purchase',
+                    'amount' => $order->price,
+                    'balance_before' => $customerBalanceBefore,
+                    'balance_after' => $customer->wallet_balance,
+                    'description' => "شراء كتاب: {$order->book->title}",
+                    'order_id' => $order->id,
+                ]);
+
+                // 2. إضافة الأرباح لصاحب المكتبة
+                $ownerBalanceBefore = $user->wallet_balance;
                 $user->wallet_balance += $order->price;
                 $user->save();
 
@@ -106,7 +136,7 @@ class LibraryOrderController extends Controller
                     'user_id' => $user->id,
                     'type' => 'earning',
                     'amount' => $order->price,
-                    'balance_before' => $balanceBefore,
+                    'balance_before' => $ownerBalanceBefore,
                     'balance_after' => $user->wallet_balance,
                     'description' => "ربح من بيع: {$order->book->title}",
                     'order_id' => $order->id,
@@ -129,10 +159,11 @@ class LibraryOrderController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
+            \Illuminate\Support\Facades\Log::error("Accept Order Exception: " . $e->getMessage() . "\n" . $e->getTraceAsString());
             return response()->json([
                 'status' => 'error',
-                'message' => 'حدث خطأ أثناء قبول الطلب',
-                'message_en' => 'Error accepting order',
+                'message' => 'حدث خطأ أثناء قبول الطلب: ' . $e->getMessage(),
+                'message_en' => 'Error accepting order: ' . $e->getMessage(),
             ], 500);
         }
     }
@@ -144,7 +175,7 @@ class LibraryOrderController extends Controller
     public function reject(Request $request, $id)
     {
         $request->validate([
-            'rejection_reason' => 'required|string|max:500',
+            'rejection_reason' => 'nullable|string|max:500',
         ]);
 
         $user = $request->user();
@@ -162,27 +193,9 @@ class LibraryOrderController extends Controller
         DB::beginTransaction();
         try {
             $order->status = 'rejected';
-            $order->rejection_reason = $request->rejection_reason;
+            $order->rejection_reason = $request->rejection_reason ?? 'تم رفض الطلب من قبل صاحب المكتبة';
             $order->rejected_at = now();
             $order->save();
-
-            // إرجاع المبلغ إذا كان الدفع عبر المحفظة
-            if ($order->payment_method === 'wallet') {
-                $customer = $order->customer;
-                $balanceBefore = $customer->wallet_balance;
-                $customer->wallet_balance += $order->price;
-                $customer->save();
-
-                WalletTransaction::create([
-                    'user_id' => $customer->id,
-                    'type' => 'refund',
-                    'amount' => $order->price,
-                    'balance_before' => $balanceBefore,
-                    'balance_after' => $customer->wallet_balance,
-                    'description' => "استرجاع مبلغ الطلب المرفوض #{$order->id}",
-                    'order_id' => $order->id,
-                ]);
-            }
 
             // إرجاع الكمية
             $order->book->increment('quantity');
@@ -200,10 +213,11 @@ class LibraryOrderController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
+            \Illuminate\Support\Facades\Log::error("Reject Order Exception: " . $e->getMessage() . "\n" . $e->getTraceAsString());
             return response()->json([
                 'status' => 'error',
-                'message' => 'حدث خطأ أثناء رفض الطلب',
-                'message_en' => 'Error rejecting order',
+                'message' => 'حدث خطأ أثناء رفض الطلب: ' . $e->getMessage(),
+                'message_en' => 'Error rejecting order: ' . $e->getMessage(),
             ], 500);
         }
     }

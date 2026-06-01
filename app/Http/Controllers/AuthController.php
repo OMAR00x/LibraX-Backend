@@ -265,5 +265,44 @@ public function login(LoginRequest $request)
         }
     }
 
+    public function updateLibraryProfile(Request $request)
+    {
+        try {
+            $user = $request->user();
+
+            if (!$user || !$user->isLibraryOwner()) {
+                return $this->errorResponse('غير مصرح لك بإجراء هذا التعديل', [], 403);
+            }
+
+            $validated = $request->validate([
+                'library_name' => 'required|string|max:255',
+                'library_address' => 'required|string|max:500',
+                'phone' => 'required|string|max:20',
+                'library_description' => 'nullable|string|max:1000',
+                'library_image' => 'nullable|image|mimes:jpeg,png,jpg|max:4096',
+                'library_latitude' => 'nullable|numeric',
+                'library_longitude' => 'nullable|numeric',
+            ]);
+
+            if ($request->hasFile('library_image')) {
+                // Delete old image
+                if ($user->library_image) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->delete($user->library_image);
+                }
+                $validated['library_image'] = $request->file('library_image')->store('libraries', 'public');
+            }
+
+            $user->update($validated);
+
+            return $this->successResponse([
+                'user' => new UserResource($user->fresh()),
+            ], 'تم تحديث بيانات المكتبة بنجاح');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return $this->errorResponse('بيانات الإدخال غير صالحة', $e->errors(), 422);
+        } catch (\Exception $e) {
+            \Log::error('Update library profile error', ['error' => $e->getMessage()]);
+            return $this->errorResponse('خطأ داخلي في الخادم أثناء تحديث البيانات', [], 500);
+        }
+    }
 
 }

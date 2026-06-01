@@ -22,6 +22,8 @@ class UserResource extends JsonResource
             'library_address' => $this->library_address,
             'library_latitude' => $this->library_latitude,
             'library_longitude' => $this->library_longitude,
+            'library_image' => $this->library_image ? url('storage/' . $this->library_image) : null,
+            'library_description' => $this->library_description,
             'wallet_balance' => (float) $this->wallet_balance,
             'is_active' => $this->is_active,
             'created_at' => $this->created_at?->toIso8601String(),

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\ChargeRequestResource;
 use App\Models\ChargeRequest;
 use App\Models\WalletTransaction;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -72,7 +73,7 @@ class AdminChargeRequestController extends Controller
     public function approve(Request $request, $id)
     {
         $request->validate([
-            'amount' => 'nullable|numeric|min:1000', // يمكن تعديل المبلغ
+            'amount' => 'nullable|numeric|min:9', // يمكن تعديل المبلغ
         ]);
 
         $admin = $request->user();

@@ -74,7 +74,7 @@ class WalletController extends Controller
     public function requestCharge(Request $request)
     {
         $request->validate([
-            'amount' => 'required|numeric|min:1000|max:1000000',
+            'amount' => 'required|numeric|min:9|max:1000000',
             'transaction_number' => 'required|string|max:255',
             'receipt_image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
         ]);

@@ -18,11 +18,12 @@ class HomeController extends Controller
     {
         $user = $request->user();
 
-        // جلب الأصناف النشطة مع عدد الكتب
+        // جلب الأصناف النشطة مع عدد الكتب (التي تحتوي على كتب نشطة فقط)
         $categories = Category::where('is_active', true)
             ->withCount(['books' => function ($query) {
                 $query->where('is_active', true);
             }])
+            ->having('books_count', '>', 0)
             ->get();
 
         // جلب أحدث الكتب (للعرض الافتراضي)

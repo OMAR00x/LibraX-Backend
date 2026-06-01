@@ -18,6 +18,7 @@ class CategoryController extends Controller
             ->withCount(['books' => function ($query) {
                 $query->where('is_active', true);
             }])
+            ->having('books_count', '>', 0)
             ->get();
 
         return response()->json([

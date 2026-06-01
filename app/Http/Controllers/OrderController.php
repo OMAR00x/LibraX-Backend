@@ -95,23 +95,7 @@ class OrderController extends Controller
                 'status' => 'pending',
             ]);
 
-            // إذا كان الدفع عبر المحفظة، خصم المبلغ
-            if ($request->payment_method === 'wallet') {
-                $balanceBefore = $user->wallet_balance;
-                $user->wallet_balance -= $book->price;
-                $user->save();
 
-                // تسجيل المعاملة
-                WalletTransaction::create([
-                    'user_id' => $user->id,
-                    'type' => 'purchase',
-                    'amount' => $book->price,
-                    'balance_before' => $balanceBefore,
-                    'balance_after' => $user->wallet_balance,
-                    'description' => "شراء كتاب: {$book->title}",
-                    'order_id' => $order->id,
-                ]);
-            }
 
             // تقليل الكمية
             $book->decrement('quantity');
@@ -186,22 +170,7 @@ class OrderController extends Controller
             $order->cancelled_at = now();
             $order->save();
 
-            // إرجاع المبلغ إذا كان الدفع عبر المحفظة
-            if ($order->payment_method === 'wallet') {
-                $balanceBefore = $user->wallet_balance;
-                $user->wallet_balance += $order->price;
-                $user->save();
 
-                WalletTransaction::create([
-                    'user_id' => $user->id,
-                    'type' => 'refund',
-                    'amount' => $order->price,
-                    'balance_before' => $balanceBefore,
-                    'balance_after' => $user->wallet_balance,
-                    'description' => "استرجاع مبلغ الطلب #{$order->id}",
-                    'order_id' => $order->id,
-                ]);
-            }
 
             // إرجاع الكمية
             $order->book->increment('quantity');
