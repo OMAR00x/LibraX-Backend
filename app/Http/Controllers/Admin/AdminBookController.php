@@ -7,6 +7,7 @@ use App\Http\Resources\BookResource;
 use App\Models\Book;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 
 class AdminBookController extends Controller
 {

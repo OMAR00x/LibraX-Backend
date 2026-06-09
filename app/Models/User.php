@@ -21,6 +21,7 @@ class User extends Authenticatable
         'password',
         'is_active',
         'role',
+        'locale',
         'library_name',
         'library_address',
         'library_latitude',
@@ -98,6 +99,36 @@ class User extends Authenticatable
     public function chargeRequests()
     {
         return $this->hasMany(ChargeRequest::class);
+    }
+
+    public function reviews()
+    {
+        return $this->hasMany(BookReview::class);
+    }
+
+    public function highlights()
+    {
+        return $this->hasMany(BookHighlight::class);
+    }
+
+    public function notes()
+    {
+        return $this->hasMany(BookNote::class);
+    }
+
+    public function quotes()
+    {
+        return $this->hasMany(BookQuote::class);
+    }
+
+    public function readingProgresses()
+    {
+        return $this->hasMany(ReadingProgress::class);
+    }
+
+    public function bookmarks()
+    {
+        return $this->hasMany(Bookmark::class);
     }
 
     public function isCustomer()

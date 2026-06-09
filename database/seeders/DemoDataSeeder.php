@@ -66,6 +66,19 @@ class DemoDataSeeder extends Seeder
                 'wallet_balance' => 300,
                 'is_active' => true,
             ],
+            [
+                'first_name' => 'صاحب',
+                'last_name' => 'المكتبة الافتراضي',
+                'phone' => '0984936480',
+                'password' => bcrypt('password'),
+                'role' => 'library_owner',
+                'library_name' => 'مكتبة الاختبار الافتراضية',
+                'library_address' => 'دمشق - وسط المدينة',
+                'library_latitude' => 33.5138,
+                'library_longitude' => 36.2765,
+                'wallet_balance' => 1000,
+                'is_active' => true,
+            ],
         ];
 
         foreach ($libraryOwners as $owner) {
@@ -109,7 +122,8 @@ class DemoDataSeeder extends Seeder
             echo "✅ Customer created: {$user->first_name} {$user->last_name} ({$user->phone})\n";
         }
 
-        // 4. Get categories
+        // 4. Get categories (Commented out books seeding to keep DB clean of mock books)
+        /*
         $categories = Category::all();
         if ($categories->isEmpty()) {
             echo "⚠️  No categories found. Run CategorySeeder first!\n";
@@ -259,10 +273,11 @@ class DemoDataSeeder extends Seeder
             $book = Book::create($bookData);
             echo "✅ Book created: {$book->title} - {$book->libraryOwner->library_name}\n";
         }
+        */
 
         echo "\n";
         echo "========================================\n";
-        echo "✅ Demo data seeded successfully!\n";
+        echo "✅ Demo users seeded successfully!\n";
         echo "========================================\n";
         echo "\n";
         echo "📝 Test Accounts:\n";
@@ -274,7 +289,7 @@ class DemoDataSeeder extends Seeder
         echo "  Customer 2: 0955555555 / password\n";
         echo "  Customer 3: 0966666666 / password\n";
         echo "\n";
-        echo "📚 Books created: " . count($books) . "\n";
-        echo "📂 Categories: " . $categories->count() . "\n";
+        echo "📚 Books created: 0 (Mock books disabled)\n";
+        echo "📂 Categories: 0 (Mock categories disabled)\n";
     }
 }

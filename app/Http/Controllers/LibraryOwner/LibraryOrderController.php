@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\WalletTransaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Notifications\GeneralNotification;
 
 class LibraryOrderController extends Controller
 {
@@ -45,7 +46,7 @@ class LibraryOrderController extends Controller
                 ],
                 'counts' => [
                     'pending' => Order::where('library_owner_id', $user->id)->pending()->count(),
-                    'accepted' => Order::where('library_owner_id', $user->id)->accepted()->count(),
+                    'accepted' => Order::where('library_owner_id', $user->id)->whereIn('status', ['accepted', 'completed'])->count(),
                     'rejected' => Order::where('library_owner_id', $user->id)->rejected()->count(),
                 ],
             ],
@@ -92,7 +93,7 @@ class LibraryOrderController extends Controller
 
         DB::beginTransaction();
         try {
-            if ($order->payment_method === 'wallet') {
+            if ($order->payment_method === 'wallet' && !config('app.test_wallet_mode', false)) {
                 $customer = $order->customer;
                 if ($customer->wallet_balance < $order->price) {
                     DB::rollBack();
@@ -112,41 +113,78 @@ class LibraryOrderController extends Controller
             if ($order->payment_method === 'wallet') {
                 $customer = $order->customer;
 
-                // 1. الخصم من محفظة الزبون
-                $customerBalanceBefore = $customer->wallet_balance;
-                $customer->wallet_balance -= $order->price;
-                $customer->save();
+                if (config('app.test_wallet_mode', false)) {
+                    // في وضع التطوير: نسجل العملية دون تعديل الرصيد الحقيقي في قاعدة البيانات
+                    WalletTransaction::create([
+                        'user_id' => $customer->id,
+                        'type' => 'purchase',
+                        'amount' => $order->price,
+                        'balance_before' => $customer->wallet_balance,
+                        'balance_after' => $customer->wallet_balance,
+                        'description' => "شراء كتاب (تطوير): {$order->book->title}",
+                        'order_id' => $order->id,
+                    ]);
 
-                WalletTransaction::create([
-                    'user_id' => $customer->id,
-                    'type' => 'purchase',
-                    'amount' => $order->price,
-                    'balance_before' => $customerBalanceBefore,
-                    'balance_after' => $customer->wallet_balance,
-                    'description' => "شراء كتاب: {$order->book->title}",
-                    'order_id' => $order->id,
-                ]);
+                    WalletTransaction::create([
+                        'user_id' => $user->id,
+                        'type' => 'earning',
+                        'amount' => $order->price,
+                        'balance_before' => $user->wallet_balance,
+                        'balance_after' => $user->wallet_balance,
+                        'description' => "ربح من بيع (تطوير): {$order->book->title}",
+                        'order_id' => $order->id,
+                    ]);
+                } else {
+                    // 1. الخصم من محفظة الزبون
+                    $customerBalanceBefore = $customer->wallet_balance;
+                    $customer->wallet_balance -= $order->price;
+                    $customer->save();
 
-                // 2. إضافة الأرباح لصاحب المكتبة
-                $ownerBalanceBefore = $user->wallet_balance;
-                $user->wallet_balance += $order->price;
-                $user->save();
+                    WalletTransaction::create([
+                        'user_id' => $customer->id,
+                        'type' => 'purchase',
+                        'amount' => $order->price,
+                        'balance_before' => $customerBalanceBefore,
+                        'balance_after' => $customer->wallet_balance,
+                        'description' => "شراء كتاب: {$order->book->title}",
+                        'order_id' => $order->id,
+                    ]);
 
-                WalletTransaction::create([
-                    'user_id' => $user->id,
-                    'type' => 'earning',
-                    'amount' => $order->price,
-                    'balance_before' => $ownerBalanceBefore,
-                    'balance_after' => $user->wallet_balance,
-                    'description' => "ربح من بيع: {$order->book->title}",
-                    'order_id' => $order->id,
-                ]);
+                    // 2. إضافة الأرباح لصاحب المكتبة
+                    $ownerBalanceBefore = $user->wallet_balance;
+                    $user->wallet_balance += $order->price;
+                    $user->save();
+
+                    WalletTransaction::create([
+                        'user_id' => $user->id,
+                        'type' => 'earning',
+                        'amount' => $order->price,
+                        'balance_before' => $ownerBalanceBefore,
+                        'balance_after' => $user->wallet_balance,
+                        'description' => "ربح من بيع: {$order->book->title}",
+                        'order_id' => $order->id,
+                    ]);
+                }
             }
 
             // زيادة عدد المبيعات
             $order->book->increment('total_sales');
 
             DB::commit();
+
+            // Notify customer of order approval
+            try {
+                $order->customer->notify(new GeneralNotification(
+                    'ORDER_APPROVED',
+                    "✅ تم قبول الطلب",
+                    "✅ Order Approved",
+                    "✅ تم قبول طلبك بنجاح.",
+                    "✅ Your request has been approved successfully.",
+                    ['order_id' => $order->id, 'book_id' => $order->book_id]
+                ));
+            } catch (\Exception $e) {
+                \Log::error('Failed to send order approval notification: ' . $e->getMessage());
+            }
 
             return response()->json([
                 'status' => 'success',
@@ -202,6 +240,20 @@ class LibraryOrderController extends Controller
 
             DB::commit();
 
+            // Notify customer of order rejection
+            try {
+                $order->customer->notify(new GeneralNotification(
+                    'ORDER_REJECTED',
+                    "❌ تم رفض الطلب",
+                    "❌ Order Rejected",
+                    "❌ تم رفض طلبك.",
+                    "❌ Your request has been rejected.",
+                    ['order_id' => $order->id, 'book_id' => $order->book_id]
+                ));
+            } catch (\Exception $e) {
+                \Log::error('Failed to send order rejection notification: ' . $e->getMessage());
+            }
+
             return response()->json([
                 'status' => 'success',
                 'message' => 'تم رفض الطلب بنجاح',
@@ -243,6 +295,20 @@ class LibraryOrderController extends Controller
         $order->status = 'completed';
         $order->completed_at = now();
         $order->save();
+
+        // Notify customer of order completion
+        try {
+            $order->customer->notify(new GeneralNotification(
+                'ORDER_COMPLETED',
+                "🎉 تم إكمال الطلب",
+                "🎉 Order Completed",
+                "🎉 تم إكمال طلبك بنجاح.",
+                "🎉 Your order has been completed successfully.",
+                ['order_id' => $order->id, 'book_id' => $order->book_id]
+            ));
+        } catch (\Exception $e) {
+            \Log::error('Failed to send order completion notification: ' . $e->getMessage());
+        }
 
         return response()->json([
             'status' => 'success',

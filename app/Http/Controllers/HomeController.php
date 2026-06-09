@@ -16,7 +16,20 @@ class HomeController extends Controller
      */
     public function index(Request $request)
     {
-        $user = $request->user();
+        $user = auth('sanctum')->user();
+
+        $userData = null;
+        $unreadNotificationsCount = 0;
+        if ($user) {
+            $userData = [
+                'id' => $user->id,
+                'name' => $user->first_name . ' ' . $user->last_name,
+                'first_name' => $user->first_name,
+                'last_name' => $user->last_name,
+                'avatar' => $user->avatar ? url('storage/' . $user->avatar) : null,
+            ];
+            $unreadNotificationsCount = $user->unreadNotifications()->count();
+        }
 
         // جلب الأصناف النشطة مع عدد الكتب (التي تحتوي على كتب نشطة فقط)
         $categories = Category::where('is_active', true)
@@ -37,14 +50,8 @@ class HomeController extends Controller
         return response()->json([
             'status' => 'success',
             'data' => [
-                'user' => [
-                    'id' => $user->id,
-                    'name' => $user->first_name . ' ' . $user->last_name,
-                    'first_name' => $user->first_name,
-                    'last_name' => $user->last_name,
-                    'avatar' => $user->avatar ? url('storage/' . $user->avatar) : null,
-                ],
-                'unread_notifications_count' => $user->unreadNotifications()->count(),
+                'user' => $userData,
+                'unread_notifications_count' => $unreadNotificationsCount,
                 'categories' => CategoryResource::collection($categories),
                 'latest_books' => BookListResource::collection($latestBooks),
             ],

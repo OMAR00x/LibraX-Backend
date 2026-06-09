@@ -21,7 +21,7 @@ class BookInteractionController extends Controller
     public function getInteractions($bookId)
     {
         $userId = Auth::id();
-
+        
         // Check if book exists
         $book = Book::findOrFail($bookId);
 
@@ -44,6 +44,11 @@ class BookInteractionController extends Controller
             ->latest()
             ->get();
 
+        $bookmarks = \App\Models\Bookmark::where('user_id', $userId)
+            ->where('book_id', $bookId)
+            ->orderBy('page_number')
+            ->get();
+
         $userReview = BookReview::where('user_id', $userId)
             ->where('book_id', $bookId)
             ->first();
@@ -55,6 +60,7 @@ class BookInteractionController extends Controller
                 'highlights' => $highlights,
                 'notes' => $notes,
                 'quotes' => $quotes,
+                'bookmarks' => $bookmarks,
                 'user_review' => $userReview ? new BookReviewResource($userReview) : null,
             ]
         ]);
@@ -378,6 +384,70 @@ class BookInteractionController extends Controller
                 'weekly_distribution' => $weeklyDistribution,
                 'activity_logs' => $activityLogs,
             ]
+        ]);
+    }
+
+    /**
+     * Get book bookmarks.
+     */
+    public function getBookmarks($bookId)
+    {
+        $userId = Auth::id();
+        Book::findOrFail($bookId);
+
+        $bookmarks = \App\Models\Bookmark::where('user_id', $userId)
+            ->where('book_id', $bookId)
+            ->orderBy('page_number')
+            ->get();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $bookmarks
+        ]);
+    }
+
+    /**
+     * Store bookmark.
+     */
+    public function storeBookmark(Request $request, $bookId)
+    {
+        $userId = Auth::id();
+        Book::findOrFail($bookId);
+
+        $request->validate([
+            'page_number' => 'required|integer|min:1',
+            'note' => 'nullable|string|max:255',
+        ]);
+
+        $bookmark = \App\Models\Bookmark::updateOrCreate(
+            [
+                'user_id' => $userId,
+                'book_id' => $bookId,
+                'page_number' => $request->input('page_number'),
+            ],
+            [
+                'note' => $request->input('note'),
+            ]
+        );
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'تم حفظ الإشارة المرجعية بنجاح',
+            'data' => $bookmark
+        ], 201);
+    }
+
+    /**
+     * Delete bookmark.
+     */
+    public function destroyBookmark($id)
+    {
+        $bookmark = \App\Models\Bookmark::where('user_id', Auth::id())->findOrFail($id);
+        $bookmark->delete();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'تم حذف الإشارة المرجعية بنجاح'
         ]);
     }
 }

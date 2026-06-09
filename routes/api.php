@@ -47,6 +47,22 @@ Route::post('/password/verify-otp', [PasswordResetController::class, 'verifyOtp'
 Route::post('/password/reset', [PasswordResetController::class, 'resetPassword']);
 Route::post('/password/resend-otp', [PasswordResetController::class, 'resendPasswordResetOtp']);
 
+
+/*
+|--------------------------------------------------------------------------
+| Public Browsing Routes (الزوار والمشتركون)
+|--------------------------------------------------------------------------
+*/
+Route::get('/home', [HomeController::class, 'index']);
+Route::get('/home/search', [HomeController::class, 'search']);
+Route::get('/home/filter', [HomeController::class, 'filter']);
+Route::get('/categories', [CategoryController::class, 'index']);
+Route::get('/categories/{id}', [CategoryController::class, 'show']);
+Route::get('/books/category/{categoryId}', [BookController::class, 'getByCategory']);
+Route::get('/books/{id}', [BookController::class, 'show']);
+Route::get('/books/{id}/reviews', [BookInteractionController::class, 'getReviews']);
+
+
 /*
 |--------------------------------------------------------------------------
 | Authenticated Routes (مشتركة لجميع المستخدمين المسجلين)
@@ -86,19 +102,6 @@ Route::middleware('auth:sanctum')->group(function () {
     |--------------------------------------------------------------------------
     */
 
-    // Home
-    Route::get('/home', [HomeController::class, 'index']);
-    Route::get('/home/search', [HomeController::class, 'search']);
-    Route::get('/home/filter', [HomeController::class, 'filter']);
-
-    // Categories
-    Route::get('/categories', [CategoryController::class, 'index']);
-    Route::get('/categories/{id}', [CategoryController::class, 'show']);
-
-    // Books
-    Route::get('/books/category/{categoryId}', [BookController::class, 'getByCategory']);
-    Route::get('/books/{id}', [BookController::class, 'show']);
-
     // Favorites
     Route::get('/favorites', [FavoriteController::class, 'index']);
     Route::post('/favorites', [FavoriteController::class, 'store']);
@@ -131,7 +134,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/books/notes/{id}', [BookInteractionController::class, 'destroyNote']);
     Route::post('/books/{id}/quotes', [BookInteractionController::class, 'storeQuote']);
     Route::delete('/books/quotes/{id}', [BookInteractionController::class, 'destroyQuote']);
-    Route::get('/books/{id}/reviews', [BookInteractionController::class, 'getReviews']);
+    Route::get('/books/{id}/bookmarks', [BookInteractionController::class, 'getBookmarks']);
+    Route::post('/books/{id}/bookmarks', [BookInteractionController::class, 'storeBookmark']);
+    Route::delete('/bookmarks/{id}', [BookInteractionController::class, 'destroyBookmark']);
     Route::post('/books/{id}/reviews', [BookInteractionController::class, 'storeReview']);
     Route::get('/reader/statistics', [BookInteractionController::class, 'getStatistics']);
 
@@ -142,7 +147,7 @@ Route::middleware('auth:sanctum')->group(function () {
     */
 
     // Library Books Management
-    Route::prefix('library')->middleware('check.account')->group(function () {
+    Route::prefix('library')->middleware(['check.account', 'role:library_owner'])->group(function () {
         Route::post('/profile', [AuthController::class, 'updateLibraryProfile']);
         Route::get('/books', [\App\Http\Controllers\LibraryOwner\LibraryBookController::class, 'index']);
         Route::post('/books', [\App\Http\Controllers\LibraryOwner\LibraryBookController::class, 'store']);
@@ -167,7 +172,7 @@ Route::middleware('auth:sanctum')->group(function () {
     |--------------------------------------------------------------------------
     */
 
-    Route::prefix('admin')->middleware('check.account')->group(function () {
+    Route::prefix('admin')->middleware(['check.account', 'role:admin'])->group(function () {
         // Users Management
         Route::get('/users', [\App\Http\Controllers\Admin\AdminUserController::class, 'index']);
         Route::post('/users', [\App\Http\Controllers\Admin\AdminUserController::class, 'store']);

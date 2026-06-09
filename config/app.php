@@ -123,4 +123,6 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    'test_wallet_mode' => (bool) env('TEST_WALLET_MODE', false),
+
 ];

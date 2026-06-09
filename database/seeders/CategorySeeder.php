@@ -9,6 +9,9 @@ class CategorySeeder extends Seeder
 {
     public function run(): void
     {
+        // Default categories are commented out so that categories section starts empty.
+        // Categories will be created dynamically when library owners add books with custom category names.
+        /*
         $categories = [
             [
                 'name_ar' => 'روايات',
@@ -75,5 +78,6 @@ class CategorySeeder extends Seeder
         foreach ($categories as $category) {
             Category::create($category);
         }
+        */
     }
 }

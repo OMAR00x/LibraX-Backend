@@ -28,6 +28,7 @@ class WalletController extends Controller
             'data' => [
                 'balance' => (float) $user->wallet_balance,
                 'recent_transactions' => WalletTransactionResource::collection($transactions),
+                'test_wallet_mode' => (bool) config('app.test_wallet_mode', false),
             ],
         ]);
     }

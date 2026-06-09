@@ -9,21 +9,33 @@ use Kreait\Firebase\Messaging\Notification;
 class FirebaseNotificationService
 {
     protected $messaging;
+    protected $isConfigured = false;
 
     public function __construct()
     {
         $credentialsPath = config('firebase.credentials');
 
         if (!file_exists($credentialsPath)) {
-            throw new \Exception("Firebase credentials file not found at: {$credentialsPath}");
+            \Log::warning("Firebase credentials file not found at: {$credentialsPath}. FCM push notifications are disabled.");
+            return;
         }
 
-        $factory = (new Factory)->withServiceAccount($credentialsPath);
-        $this->messaging = $factory->createMessaging();
+        try {
+            $factory = (new Factory)->withServiceAccount($credentialsPath);
+            $this->messaging = $factory->createMessaging();
+            $this->isConfigured = true;
+        } catch (\Exception $e) {
+            \Log::error("Failed to initialize Firebase Messaging: " . $e->getMessage());
+        }
     }
 
     public function sendToToken(string $token, string $title, string $body, array $data = []): bool
     {
+        if (!$this->isConfigured) {
+            \Log::warning('FCM send failed: Firebase service not configured');
+            return false;
+        }
+
         try {
             $message = CloudMessage::withTarget('token', $token)
                 ->withNotification(Notification::create($title, $body))
@@ -51,6 +63,11 @@ class FirebaseNotificationService
      */
     public function sendToUser(int $userId, string $title, string $body, array $data = []): bool
     {
+        if (!$this->isConfigured) {
+            \Log::warning('FCM sendToUser failed: Firebase service not configured');
+            return false;
+        }
+
         try {
             $tokens = \App\Models\FcmToken::where('user_id', $userId)->pluck('token')->toArray();
 

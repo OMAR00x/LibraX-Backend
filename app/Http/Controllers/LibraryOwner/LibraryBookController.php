@@ -93,12 +93,16 @@ class LibraryBookController extends Controller
             'quantity' => 'required|integer|min:0',
             'page_count' => 'nullable|integer|min:0',
             'parts_count' => 'nullable|integer|min:1',
-            'cover_image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'cover_image' => 'nullable|image|mimes:jpeg,png,jpg|max:10240',
             'pdf_file' => 'nullable|mimes:pdf|max:10240',
             'audio_file' => 'nullable|mimes:mp3,wav|max:20480',
             'pdf_access' => 'nullable|string|in:free,purchase',
             'audio_access' => 'nullable|string|in:free,purchase',
             'is_active' => 'nullable|boolean',
+        ], [
+            'cover_image.max' => str_contains($request->header('Accept-Language', 'ar'), 'ar')
+                ? 'حجم صورة الغلاف يجب ألا يتجاوز 10 ميجابايت.'
+                : 'Cover image size must not exceed 10 MB.',
         ]);
 
         if (!$request->category_id && !$request->category_name) {
@@ -121,6 +125,10 @@ class LibraryBookController extends Controller
                     'name_en' => $request->category_name,
                     'icon' => $request->category_icon ?? '58145', // Default menu_book icon codepoint
                     'is_active' => true,
+                ]);
+            } elseif ($request->category_icon) {
+                $category->update([
+                    'icon' => $request->category_icon
                 ]);
             }
             $categoryId = $category->id;
@@ -189,12 +197,16 @@ class LibraryBookController extends Controller
             'quantity' => 'nullable|integer|min:0',
             'page_count' => 'nullable|integer|min:0',
             'parts_count' => 'nullable|integer|min:1',
-            'cover_image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'cover_image' => 'nullable|image|mimes:jpeg,png,jpg|max:10240',
             'pdf_file' => 'nullable|mimes:pdf|max:10240',
             'audio_file' => 'nullable|mimes:mp3,wav|max:20480',
             'pdf_access' => 'nullable|string|in:free,purchase',
             'audio_access' => 'nullable|string|in:free,purchase',
             'is_active' => 'nullable|boolean',
+        ], [
+            'cover_image.max' => str_contains($request->header('Accept-Language', 'ar'), 'ar')
+                ? 'حجم صورة الغلاف يجب ألا يتجاوز 10 ميجابايت.'
+                : 'Cover image size must not exceed 10 MB.',
         ]);
 
         $categoryId = $request->category_id;
@@ -210,6 +222,10 @@ class LibraryBookController extends Controller
                     'icon' => $request->category_icon ?? '58145',
                     'is_active' => true,
                 ]);
+            } elseif ($request->category_icon) {
+                $category->update([
+                    'icon' => $request->category_icon
+                ]);
             }
             $categoryId = $category->id;
         }
@@ -218,12 +234,19 @@ class LibraryBookController extends Controller
 
         $book = Book::where('library_owner_id', $user->id)->findOrFail($id);
 
-        // تحديث الملفات إذا تم رفع ملفات جديدة
-        if ($request->hasFile('cover_image')) {
+        // تحديث الملفات أو حذفها إذا تم طلب ذلك
+        if ($request->boolean('remove_cover_image') || $request->input('remove_cover_image') === 'true' || $request->input('remove_cover_image') === '1') {
+            if ($book->cover_image) {
+                Storage::disk('public')->delete($book->cover_image);
+            }
+            $book->cover_image = null;
+            $book->save();
+        } elseif ($request->hasFile('cover_image')) {
             if ($book->cover_image) {
                 Storage::disk('public')->delete($book->cover_image);
             }
             $book->cover_image = $request->file('cover_image')->store('books/covers', 'public');
+            $book->save();
         }
 
         if ($request->hasFile('pdf_file')) {
@@ -281,6 +304,19 @@ class LibraryBookController extends Controller
         $user = $request->user();
 
         $book = Book::where('library_owner_id', $user->id)->findOrFail($id);
+
+        // التحقق من وجود طلبات نشطة
+        $hasActiveOrders = \App\Models\Order::where('book_id', $id)
+            ->whereIn('status', ['pending', 'accepted'])
+            ->exists();
+
+        if ($hasActiveOrders) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'لا يمكن حذف الكتاب لوجود طلبات نشطة عليه من الزبائن',
+                'message_en' => 'Cannot delete book with active or pending orders',
+            ], 409);
+        }
 
         // حذف الملفات
         if ($book->cover_image) {

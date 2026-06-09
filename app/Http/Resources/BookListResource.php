@@ -12,7 +12,7 @@ class BookListResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        $user = $request->user();
+        $user = auth('sanctum')->user() ?? $request->user();
 
         return [
             'id' => $this->id,
@@ -25,7 +25,7 @@ class BookListResource extends JsonResource
             'is_favorited' => $user ? $this->isFavoritedBy($user->id) : false,
             'category_name_ar' => $this->category->name_ar,
             'category_name_en' => $this->category->name_en,
-            'library_name' => $this->libraryOwner->library_name,
+            'library_name' => $this->libraryOwner?->library_name ?? 'مكتبة غير معروفة',
         ];
     }
 }

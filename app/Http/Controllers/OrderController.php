@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\WalletTransaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Notifications\GeneralNotification;
 
 class OrderController extends Controller
 {
@@ -71,7 +72,7 @@ class OrderController extends Controller
         }
 
         // التحقق من الرصيد إذا كان الدفع عبر المحفظة
-        if ($request->payment_method === 'wallet') {
+        if ($request->payment_method === 'wallet' && !config('app.test_wallet_mode', false)) {
             if ($user->wallet_balance < $book->price) {
                 return response()->json([
                     'status' => 'error',
@@ -101,6 +102,23 @@ class OrderController extends Controller
             $book->decrement('quantity');
 
             DB::commit();
+
+            // Notify library owner of the new purchase
+            try {
+                $owner = $book->libraryOwner;
+                if ($owner) {
+                    $owner->notify(new GeneralNotification(
+                        'NEW_PURCHASE',
+                        "🛍️ طلب شراء جديد",
+                        "🛍️ New Purchase Request",
+                        "🛍️ تم استلام طلب جديد لشراء كتاب \"{$book->title}\".",
+                        "🛍️ A new order has been received for \"{$book->title}\".",
+                        ['order_id' => $order->id, 'book_id' => $book->id]
+                    ));
+                }
+            } catch (\Exception $e) {
+                \Log::error('Failed to send purchase notification: ' . $e->getMessage());
+            }
 
             return response()->json([
                 'status' => 'success',
@@ -177,6 +195,20 @@ class OrderController extends Controller
 
             DB::commit();
 
+            // Notify customer of order cancellation
+            try {
+                $order->customer->notify(new GeneralNotification(
+                    'ORDER_CANCELLED',
+                    "⚠️ تم إلغاء الطلب",
+                    "⚠️ Order Cancelled",
+                    "⚠️ تم إلغاء طلبك لكتاب \"{$order->book->title}\".",
+                    "⚠️ Your request for \"{$order->book->title}\" has been cancelled.",
+                    ['order_id' => $order->id, 'book_id' => $order->book_id]
+                ));
+            } catch (\Exception $e) {
+                \Log::error('Failed to send order cancellation notification: ' . $e->getMessage());
+            }
+
             return response()->json([
                 'status' => 'success',
                 'message' => 'تم إلغاء الطلب بنجاح',
@@ -225,13 +257,23 @@ class OrderController extends Controller
             $order->review = $request->review;
             $order->save();
 
-            // تحديث تقييم الكتاب
-            $book = $order->book;
-            $totalRatings = $book->total_ratings + 1;
-            $newAverage = (($book->average_rating * $book->total_ratings) + $request->rating) / $totalRatings;
+            // Create or update the BookReview record dynamically
+            \App\Models\BookReview::updateOrCreate(
+                ['user_id' => $user->id, 'book_id' => $order->book_id],
+                [
+                    'rating' => $request->rating,
+                    'review_content' => $request->review,
+                ]
+            );
 
-            $book->average_rating = round($newAverage, 2);
-            $book->total_ratings = $totalRatings;
+            // Recalculate book average rating from the reviews table to keep 100% consistency
+            $stats = \App\Models\BookReview::where('book_id', $order->book_id)
+                ->select(DB::raw('count(*) as count'), DB::raw('avg(rating) as avg'))
+                ->first();
+
+            $book = $order->book;
+            $book->average_rating = round($stats->avg ?? 0, 2);
+            $book->total_ratings = $stats->count ?? 0;
             $book->save();
 
             DB::commit();
