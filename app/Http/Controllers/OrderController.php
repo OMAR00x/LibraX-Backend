@@ -99,7 +99,8 @@ class OrderController extends Controller
 
 
             // تقليل الكمية
-            $book->decrement('quantity');
+            $book->quantity -= 1;
+            $book->save();
 
             DB::commit();
 
@@ -191,7 +192,9 @@ class OrderController extends Controller
 
 
             // إرجاع الكمية
-            $order->book->increment('quantity');
+            $book = $order->book;
+            $book->quantity += 1;
+            $book->save();
 
             DB::commit();
 

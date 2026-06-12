@@ -236,7 +236,9 @@ class LibraryOrderController extends Controller
             $order->save();
 
             // إرجاع الكمية
-            $order->book->increment('quantity');
+            $book = $order->book;
+            $book->quantity += 1;
+            $book->save();
 
             DB::commit();
 
