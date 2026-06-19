@@ -10,9 +10,9 @@ class OtpService
     private const OTP_EXPIRY_MINUTES = 15;
     private const ATTEMPT_EXPIRY_HOURS = 24;
 
-    public function getAttemptCount(string $phone): array
+    public function getAttemptCount(string $identifier, string $type = 'registration'): array
     {
-        $key = "otp_attempts:{$phone}";
+        $key = $this->getAttemptKey($identifier, $type);
         $attempts = (int) Cache::get($key, 0);
 
         return [
@@ -22,33 +22,33 @@ class OtpService
         ];
     }
 
-    public function incrementAttempts(string $phone): int
+    public function incrementAttempts(string $identifier, string $type = 'registration'): int
     {
-        $key = "otp_attempts:{$phone}";
+        $key = $this->getAttemptKey($identifier, $type);
         $attempts = (int) Cache::get($key, 0) + 1;
         Cache::put($key, $attempts, now()->addHours(self::ATTEMPT_EXPIRY_HOURS));
         return $attempts;
     }
 
-    public function decrementAttempts(string $phone): int
+    public function hasExceededAttempts(string $identifier, string $type = 'registration'): bool
     {
-        $key = "otp_attempts:{$phone}";
-        $attempts = (int) Cache::get($key, 0);
-        if ($attempts > 0) {
-            $attempts--;
-            Cache::put($key, $attempts, now()->addHours(self::ATTEMPT_EXPIRY_HOURS));
-        }
-        return $attempts;
+        return $this->getAttemptCount($identifier, $type)['current'] >= self::MAX_ATTEMPTS;
     }
 
-    public function hasExceededAttempts(string $phone): bool
+    private function getAttemptKey(string $identifier, string $type): string
     {
-        return $this->getAttemptCount($phone)['current'] >= self::MAX_ATTEMPTS;
+        $prefix = match($type) {
+            'registration' => 'otp_attempts',
+            'password_reset' => 'password_reset_attempts',
+            'phone_change' => 'phone_change_attempts',
+            default => 'otp_attempts'
+        };
+        return "{$prefix}:{$identifier}";
     }
 
     public function generateOtp(): string
     {
-        return (string) rand(100000, 999999);
+        return (string) rand(10000, 99999);
     }
 
     public function storeOtp(string $otp, string $phone): void
@@ -115,35 +115,5 @@ class OtpService
     public function deletePhoneChangeVerification(int $userId): void
     {
         Cache::forget('phone_change_verified_' . $userId);
-    }
-
-    public function storePasswordResetOtp(string $otp, string $phone): void
-    {
-        Cache::put('password_reset_otp_' . $otp, $phone, now()->addMinutes(self::OTP_EXPIRY_MINUTES));
-    }
-
-    public function verifyPasswordResetOtp(string $otp): ?string
-    {
-        return Cache::get('password_reset_otp_' . $otp);
-    }
-
-    public function deletePasswordResetOtp(string $otp): void
-    {
-        Cache::forget('password_reset_otp_' . $otp);
-    }
-
-    public function storePasswordResetVerification(string $phone): void
-    {
-        Cache::put('password_reset_verified_' . $phone, true, now()->addMinutes(10));
-    }
-
-    public function isPasswordResetVerified(string $phone): bool
-    {
-        return (bool) Cache::get('password_reset_verified_' . $phone, false);
-    }
-
-    public function deletePasswordResetVerification(string $phone): void
-    {
-        Cache::forget('password_reset_verified_' . $phone);
     }
 }
