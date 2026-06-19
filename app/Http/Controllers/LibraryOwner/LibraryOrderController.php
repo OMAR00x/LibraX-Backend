@@ -93,6 +93,16 @@ class LibraryOrderController extends Controller
 
         DB::beginTransaction();
         try {
+            $book = $order->book;
+            if ($book->quantity < $order->quantity) {
+                DB::rollBack();
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'لا يمكن قبول الطلب لأن الكمية المطلوبة غير متوفرة في المخزون',
+                    'message_en' => 'Cannot accept order because the requested quantity is not available in stock',
+                ], 400);
+            }
+
             if ($order->payment_method === 'wallet' && !config('app.test_wallet_mode', false)) {
                 $customer = $order->customer;
                 if ($customer->wallet_balance < $order->price) {
@@ -104,6 +114,10 @@ class LibraryOrderController extends Controller
                     ], 400);
                 }
             }
+
+            // تقليل المخزون عند القبول
+            $book->quantity -= $order->quantity;
+            $book->save();
 
             $order->status = 'accepted';
             $order->accepted_at = now();
@@ -234,11 +248,6 @@ class LibraryOrderController extends Controller
             $order->rejection_reason = $request->rejection_reason ?? 'تم رفض الطلب من قبل صاحب المكتبة';
             $order->rejected_at = now();
             $order->save();
-
-            // إرجاع الكمية
-            $book = $order->book;
-            $book->quantity += 1;
-            $book->save();
 
             DB::commit();
 

@@ -56,14 +56,16 @@ class OrderController extends Controller
     {
         $request->validate([
             'book_id' => 'required|exists:books,id',
+            'quantity' => 'required|integer|min:1',
             'payment_method' => 'required|in:cash,wallet',
         ]);
 
         $user = $request->user();
         $book = Book::with('libraryOwner')->findOrFail($request->book_id);
+        $quantity = (int) $request->quantity;
 
-        // التحقق من توفر الكتاب
-        if (!$book->is_active || $book->quantity <= 0) {
+        // التحقق من توفر الكتاب والكمية المطلوبة
+        if (!$book->is_active) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'الكتاب غير متوفر حالياً',
@@ -71,14 +73,24 @@ class OrderController extends Controller
             ], 400);
         }
 
+        if ($book->quantity < $quantity) {
+            return response()->json([
+                'status' => 'error',
+                'message' => "الكمية المطلوبة غير متوفرة، المتبقي فقط {$book->quantity} نسخة.",
+                'message_en' => "Requested quantity is not available. Only {$book->quantity} copies remain.",
+            ], 400);
+        }
+
+        $totalPrice = $book->price * $quantity;
+
         // التحقق من الرصيد إذا كان الدفع عبر المحفظة
         if ($request->payment_method === 'wallet' && !config('app.test_wallet_mode', false)) {
-            if ($user->wallet_balance < $book->price) {
+            if ($user->wallet_balance < $totalPrice) {
                 return response()->json([
                     'status' => 'error',
                     'message' => 'رصيدك غير كافٍ',
                     'message_en' => 'Insufficient balance',
-                    'required' => (float) $book->price,
+                    'required' => (float) $totalPrice,
                     'available' => (float) $user->wallet_balance,
                 ], 400);
             }
@@ -91,16 +103,11 @@ class OrderController extends Controller
                 'customer_id' => $user->id,
                 'book_id' => $book->id,
                 'library_owner_id' => $book->library_owner_id,
-                'price' => $book->price,
+                'price' => $totalPrice,
+                'quantity' => $quantity,
                 'payment_method' => $request->payment_method,
                 'status' => 'pending',
             ]);
-
-
-
-            // تقليل الكمية
-            $book->quantity -= 1;
-            $book->save();
 
             DB::commit();
 
@@ -189,13 +196,6 @@ class OrderController extends Controller
             $order->cancelled_at = now();
             $order->save();
 
-
-
-            // إرجاع الكمية
-            $book = $order->book;
-            $book->quantity += 1;
-            $book->save();
-
             DB::commit();
 
             // Notify customer of order cancellation
@@ -209,7 +209,24 @@ class OrderController extends Controller
                     ['order_id' => $order->id, 'book_id' => $order->book_id]
                 ));
             } catch (\Exception $e) {
-                \Log::error('Failed to send order cancellation notification: ' . $e->getMessage());
+                \Log::error('Failed to send order cancellation notification to customer: ' . $e->getMessage());
+            }
+
+            // Notify library owner of order cancellation
+            try {
+                $owner = $order->libraryOwner;
+                if ($owner) {
+                    $owner->notify(new GeneralNotification(
+                        'ORDER_CANCELLED',
+                        "⚠️ تم إلغاء طلب شراء",
+                        "⚠️ Purchase Order Cancelled",
+                        "⚠️ قام الزبون \"{$user->name}\" بإلغاء طلب شراء كتاب \"{$order->book->title}\".",
+                        "⚠️ Customer \"{$user->name}\" cancelled the order for \"{$order->book->title}\".",
+                        ['order_id' => $order->id, 'book_id' => $order->book_id]
+                    ));
+                }
+            } catch (\Exception $e) {
+                \Log::error('Failed to send order cancellation notification to library owner: ' . $e->getMessage());
             }
 
             return response()->json([

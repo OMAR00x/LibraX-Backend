@@ -15,6 +15,7 @@ class Order extends Model
         'book_id',
         'library_owner_id',
         'price',
+        'quantity',
         'payment_method',
         'status',
         'rejection_reason',
@@ -27,6 +28,7 @@ class Order extends Model
 
     protected $casts = [
         'price' => 'decimal:2',
+        'quantity' => 'integer',
         'accepted_at' => 'datetime',
         'rejected_at' => 'datetime',
         'cancelled_at' => 'datetime',

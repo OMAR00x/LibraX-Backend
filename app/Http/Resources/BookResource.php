@@ -43,7 +43,6 @@ class BookResource extends JsonResource
                 'phone' => $this->libraryOwner->phone,
                 'latitude' => $this->libraryOwner->library_latitude,
                 'longitude' => $this->libraryOwner->library_longitude,
-                'image' => $this->libraryOwner->library_image ? url('storage/' . $this->libraryOwner->library_image) : null,
                 'description' => $this->libraryOwner->library_description,
             ] : null,
             'created_at' => $this->created_at?->toIso8601String(),

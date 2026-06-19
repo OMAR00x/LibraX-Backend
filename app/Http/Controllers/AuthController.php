@@ -275,22 +275,13 @@ public function login(LoginRequest $request)
             }
 
             $validated = $request->validate([
-                'library_name' => 'required|string|max:255',
-                'library_address' => 'required|string|max:500',
-                'phone' => 'required|string|max:20',
+                'library_name'        => 'required|string|max:255',
+                'library_address'     => 'required|string|max:500',
+                'phone'               => 'required|string|max:20',
                 'library_description' => 'nullable|string|max:1000',
-                'library_image' => 'nullable|image|mimes:jpeg,png,jpg|max:4096',
-                'library_latitude' => 'nullable|numeric',
-                'library_longitude' => 'nullable|numeric',
+                'library_latitude'    => 'nullable|numeric|between:-90,90',
+                'library_longitude'   => 'nullable|numeric|between:-180,180',
             ]);
-
-            if ($request->hasFile('library_image')) {
-                // Delete old image
-                if ($user->library_image) {
-                    \Illuminate\Support\Facades\Storage::disk('public')->delete($user->library_image);
-                }
-                $validated['library_image'] = $request->file('library_image')->store('libraries', 'public');
-            }
 
             $user->update($validated);
 

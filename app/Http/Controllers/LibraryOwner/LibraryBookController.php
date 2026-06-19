@@ -249,14 +249,26 @@ class LibraryBookController extends Controller
             $book->save();
         }
 
-        if ($request->hasFile('pdf_file')) {
+        if ($request->boolean('remove_pdf_file') || $request->input('remove_pdf_file') === 'true' || $request->input('remove_pdf_file') === '1') {
+            if ($book->pdf_file) {
+                Storage::disk('public')->delete($book->pdf_file);
+            }
+            $book->pdf_file = null;
+            $book->save();
+        } elseif ($request->hasFile('pdf_file')) {
             if ($book->pdf_file) {
                 Storage::disk('public')->delete($book->pdf_file);
             }
             $book->pdf_file = $request->file('pdf_file')->store('books/pdfs', 'public');
         }
 
-        if ($request->hasFile('audio_file')) {
+        if ($request->boolean('remove_audio_file') || $request->input('remove_audio_file') === 'true' || $request->input('remove_audio_file') === '1') {
+            if ($book->audio_file) {
+                Storage::disk('public')->delete($book->audio_file);
+            }
+            $book->audio_file = null;
+            $book->save();
+        } elseif ($request->hasFile('audio_file')) {
             if ($book->audio_file) {
                 Storage::disk('public')->delete($book->audio_file);
             }
@@ -301,40 +313,76 @@ class LibraryBookController extends Controller
      */
     public function destroy(Request $request, $id)
     {
-        $user = $request->user();
+        try {
+            $user = $request->user();
+            $book = Book::where('library_owner_id', $user->id)->findOrFail($id);
 
-        $book = Book::where('library_owner_id', $user->id)->findOrFail($id);
+            // التحقق من وجود طلبات نشطة
+            $hasActiveOrders = \App\Models\Order::where('book_id', $id)
+                ->whereIn('status', ['pending', 'accepted'])
+                ->exists();
 
-        // التحقق من وجود طلبات نشطة
-        $hasActiveOrders = \App\Models\Order::where('book_id', $id)
-            ->whereIn('status', ['pending', 'accepted'])
-            ->exists();
+            if ($hasActiveOrders) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'لا يمكن حذف الكتاب لوجود طلبات نشطة عليه من الزبائن',
+                    'message_en' => 'Cannot delete book with active or pending orders',
+                ], 409);
+            }
 
-        if ($hasActiveOrders) {
+            // حذف الملفات يدوياً مع تجنب الاستثناءات
+            try {
+                if ($book->cover_image) {
+                    Storage::disk('public')->delete($book->cover_image);
+                }
+            } catch (\Exception $e) {
+                \Log::warning("Failed to delete cover image: " . $e->getMessage());
+            }
+
+            try {
+                if ($book->pdf_file) {
+                    Storage::disk('public')->delete($book->pdf_file);
+                }
+            } catch (\Exception $e) {
+                \Log::warning("Failed to delete pdf file: " . $e->getMessage());
+            }
+
+            try {
+                if ($book->audio_file) {
+                    Storage::disk('public')->delete($book->audio_file);
+                }
+            } catch (\Exception $e) {
+                \Log::warning("Failed to delete audio file: " . $e->getMessage());
+            }
+
+            // حذف العلاقات يدوياً لضمان عدم وجود أخطاء foreign key حتى لو كان الحذف سوفت ديليت أو فورس ديليت
+            try {
+                $book->favorites()->delete();
+                $book->reviews()->delete();
+                $book->highlights()->delete();
+                $book->notes()->delete();
+                $book->quotes()->delete();
+                $book->readingProgresses()->delete();
+                $book->bookmarks()->delete();
+            } catch (\Exception $e) {
+                \Log::warning("Failed to delete relations for book ID {$id}: " . $e->getMessage());
+            }
+
+            // حذف الكتاب
+            $book->delete();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'تم حذف الكتاب بنجاح',
+                'message_en' => 'Book deleted successfully',
+            ]);
+        } catch (\Exception $e) {
+            \Log::error("Failed to delete book ID {$id}: " . $e->getMessage() . "\n" . $e->getTraceAsString());
             return response()->json([
                 'status' => 'error',
-                'message' => 'لا يمكن حذف الكتاب لوجود طلبات نشطة عليه من الزبائن',
-                'message_en' => 'Cannot delete book with active or pending orders',
-            ], 409);
+                'message' => 'فشل حذف الكتاب من السيرفر: ' . $e->getMessage(),
+                'message_en' => 'Failed to delete book from server: ' . $e->getMessage(),
+            ], 500);
         }
-
-        // حذف الملفات
-        if ($book->cover_image) {
-            Storage::disk('public')->delete($book->cover_image);
-        }
-        if ($book->pdf_file) {
-            Storage::disk('public')->delete($book->pdf_file);
-        }
-        if ($book->audio_file) {
-            Storage::disk('public')->delete($book->audio_file);
-        }
-
-        $book->delete();
-
-        return response()->json([
-            'status' => 'success',
-            'message' => 'تم حذف الكتاب بنجاح',
-            'message_en' => 'Book deleted successfully',
-        ]);
     }
 }

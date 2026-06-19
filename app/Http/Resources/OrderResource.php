@@ -34,6 +34,7 @@ class OrderResource extends JsonResource
                 ];
             }),
             'price' => (float) $this->price,
+            'quantity' => (int) $this->quantity,
             'payment_method' => $this->payment_method,
             'payment_method_ar' => $this->payment_method === 'cash' ? 'نقدي' : 'محفظة',
             'status' => $this->status,

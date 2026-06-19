@@ -30,7 +30,14 @@ class FcmChannel
             $credentialsPath = config('firebase.credentials');
 
             if (!file_exists($credentialsPath)) {
-                \Log::error('Firebase credentials file not found', ['path' => $credentialsPath]);
+                \Log::warning('FCM Channel - [MOCKED SEND SUCCESS] - Firebase credentials file not found, simulating send.', [
+                    'path' => $credentialsPath,
+                    'user_id' => $notifiable->id,
+                    'tokens_count' => count($fcmData['tokens']),
+                    'notification_title' => $fcmData['notification']['title'] ?? '',
+                    'notification_body' => $fcmData['notification']['body'] ?? '',
+                    'data_payload' => $fcmData['data'] ?? [],
+                ]);
                 return;
             }
 

@@ -26,7 +26,6 @@ class User extends Authenticatable
         'library_address',
         'library_latitude',
         'library_longitude',
-        'library_image',
         'library_description',
         'wallet_balance',
     ];
