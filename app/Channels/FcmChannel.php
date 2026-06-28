@@ -69,7 +69,6 @@ class FcmChannel
                     $result = $messaging->send($message->withChangedTarget('token', $token));
                     \Log::info('FCM sent successfully', ['token' => substr($token, 0, 20) . '...']);
                     $successCount++;
-                    break; // نجح الإرسال، توقف
                 } catch (\Kreait\Firebase\Exception\Messaging\NotFound $e) {
                     \Log::warning('FCM token not found, deleting', ['token' => substr($token, 0, 20) . '...']);
                     \App\Models\FcmToken::where('token', $token)->delete();

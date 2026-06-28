@@ -103,21 +103,40 @@ class LibraryOrderController extends Controller
                 ], 400);
             }
 
-            if ($order->payment_method === 'wallet' && !config('app.test_wallet_mode', false)) {
-                $customer = $order->customer;
-                if ($customer->wallet_balance < $order->price) {
-                    DB::rollBack();
-                    return response()->json([
-                        'status' => 'error',
-                        'message' => 'رصيد محفظة الزبون غير كافٍ لإتمام عملية الشراء',
-                        'message_en' => 'Customer wallet balance is insufficient to complete the purchase',
-                    ], 400);
-                }
-            }
+
 
             // تقليل المخزون عند القبول
             $book->quantity -= $order->quantity;
             $book->save();
+
+            // فحص المخزون وإرسال إشعار فوري للمالك في حال انخفاضه أو نفاده
+            if ($book->quantity == 0) {
+                try {
+                    $user->notify(new GeneralNotification(
+                        'OUT_OF_STOCK',
+                        "🚨 نفاد مخزون كتاب",
+                        "🚨 Book Out of Stock",
+                        "🚨 لقد نفد مخزون كتاب \"{$book->title}\" بالكامل.",
+                        "🚨 The stock for \"{$book->title}\" is completely out.",
+                        ['book_id' => $book->id]
+                    ));
+                } catch (\Exception $e) {
+                    \Log::error('Failed to send out of stock notification to owner: ' . $e->getMessage());
+                }
+            } elseif ($book->quantity <= 5) {
+                try {
+                    $user->notify(new GeneralNotification(
+                        'LOW_STOCK',
+                        "⚠️ انخفاض مخزون كتاب",
+                        "⚠️ Low Book Stock",
+                        "⚠️ مخزون كتاب \"{$book->title}\" منخفض حالياً (المتبقي: {$book->quantity} نسخة).",
+                        "⚠️ Stock for \"{$book->title}\" is low (remaining: {$book->quantity} copies).",
+                        ['book_id' => $book->id]
+                    ));
+                } catch (\Exception $e) {
+                    \Log::error('Failed to send low stock notification to owner: ' . $e->getMessage());
+                }
+            }
 
             $order->status = 'accepted';
             $order->accepted_at = now();
@@ -125,60 +144,20 @@ class LibraryOrderController extends Controller
 
             // الدفع والتوزيع المالي عبر المحفظة
             if ($order->payment_method === 'wallet') {
-                $customer = $order->customer;
+                // إضافة الأرباح لصاحب المكتبة (الرصيد تم خصمه مسبقاً من محفظة الزبون عند إنشاء الطلب)
+                $ownerBalanceBefore = $user->wallet_balance;
+                $user->wallet_balance += $order->price;
+                $user->save();
 
-                if (config('app.test_wallet_mode', false)) {
-                    // في وضع التطوير: نسجل العملية دون تعديل الرصيد الحقيقي في قاعدة البيانات
-                    WalletTransaction::create([
-                        'user_id' => $customer->id,
-                        'type' => 'purchase',
-                        'amount' => $order->price,
-                        'balance_before' => $customer->wallet_balance,
-                        'balance_after' => $customer->wallet_balance,
-                        'description' => "شراء كتاب (تطوير): {$order->book->title}",
-                        'order_id' => $order->id,
-                    ]);
-
-                    WalletTransaction::create([
-                        'user_id' => $user->id,
-                        'type' => 'earning',
-                        'amount' => $order->price,
-                        'balance_before' => $user->wallet_balance,
-                        'balance_after' => $user->wallet_balance,
-                        'description' => "ربح من بيع (تطوير): {$order->book->title}",
-                        'order_id' => $order->id,
-                    ]);
-                } else {
-                    // 1. الخصم من محفظة الزبون
-                    $customerBalanceBefore = $customer->wallet_balance;
-                    $customer->wallet_balance -= $order->price;
-                    $customer->save();
-
-                    WalletTransaction::create([
-                        'user_id' => $customer->id,
-                        'type' => 'purchase',
-                        'amount' => $order->price,
-                        'balance_before' => $customerBalanceBefore,
-                        'balance_after' => $customer->wallet_balance,
-                        'description' => "شراء كتاب: {$order->book->title}",
-                        'order_id' => $order->id,
-                    ]);
-
-                    // 2. إضافة الأرباح لصاحب المكتبة
-                    $ownerBalanceBefore = $user->wallet_balance;
-                    $user->wallet_balance += $order->price;
-                    $user->save();
-
-                    WalletTransaction::create([
-                        'user_id' => $user->id,
-                        'type' => 'earning',
-                        'amount' => $order->price,
-                        'balance_before' => $ownerBalanceBefore,
-                        'balance_after' => $user->wallet_balance,
-                        'description' => "ربح من بيع: {$order->book->title}",
-                        'order_id' => $order->id,
-                    ]);
-                }
+                WalletTransaction::create([
+                    'user_id' => $user->id,
+                    'type' => 'earning',
+                    'amount' => $order->price,
+                    'balance_before' => $ownerBalanceBefore,
+                    'balance_after' => $user->wallet_balance,
+                    'description' => "ربح من بيع: {$order->book->title}",
+                    'order_id' => $order->id,
+                ]);
             }
 
             // زيادة عدد المبيعات
@@ -249,6 +228,31 @@ class LibraryOrderController extends Controller
             $order->rejected_at = now();
             $order->save();
 
+            // استرداد المبلغ للمحفظة إذا كان الدفع عبر المحفظة
+            if ($order->payment_method === 'wallet') {
+                // التحقق من عدم الاسترداد المكرر للطلب
+                $alreadyRefunded = WalletTransaction::where('order_id', $order->id)
+                    ->where('type', 'PURCHASE_REFUND')
+                    ->exists();
+
+                if (!$alreadyRefunded) {
+                    $customer = $order->customer;
+                    $balanceBefore = $customer->wallet_balance;
+                    $customer->wallet_balance += $order->price;
+                    $customer->save();
+
+                    WalletTransaction::create([
+                        'user_id' => $customer->id,
+                        'type' => 'PURCHASE_REFUND',
+                        'amount' => $order->price,
+                        'balance_before' => $balanceBefore,
+                        'balance_after' => $customer->wallet_balance,
+                        'description' => "استرداد قيمة كتاب (رفض الطلب): {$order->book->title}",
+                        'order_id' => $order->id,
+                    ]);
+                }
+            }
+
             DB::commit();
 
             // Notify customer of order rejection
@@ -257,8 +261,12 @@ class LibraryOrderController extends Controller
                     'ORDER_REJECTED',
                     "❌ تم رفض الطلب",
                     "❌ Order Rejected",
-                    "❌ تم رفض طلبك.",
-                    "❌ Your request has been rejected.",
+                    $order->payment_method === 'wallet'
+                        ? "تم رفض الطلب وتمت إعادة المبلغ إلى محفظتك."
+                        : "❌ تم رفض طلبك.",
+                    $order->payment_method === 'wallet'
+                        ? "Your order was rejected and the amount has been refunded to your wallet."
+                        : "❌ Your request has been rejected.",
                     ['order_id' => $order->id, 'book_id' => $order->book_id]
                 ));
             } catch (\Exception $e) {

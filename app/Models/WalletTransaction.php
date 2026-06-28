@@ -42,12 +42,12 @@ class WalletTransaction extends Model
 
     public function scopePurchase($query)
     {
-        return $query->where('type', 'purchase');
+        return $query->whereIn('type', ['purchase', 'PURCHASE_DEBIT']);
     }
 
     public function scopeRefund($query)
     {
-        return $query->where('type', 'refund');
+        return $query->whereIn('type', ['refund', 'PURCHASE_REFUND']);
     }
 
     public function scopeEarning($query)

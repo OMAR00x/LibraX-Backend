@@ -22,14 +22,29 @@ class WhatsappService
     public function sendOtp($phone, $otp)
     {
         $phone = $this->formatPhone($phone);
-        $message = "*تطبيق LibraX*\n\nكود التحقق الخاص بك:\n*{$otp}*\n\n⚠️ لا تشارك هذا الكود مع أحد\n\nصالح لمدة 15 دقيقة";
+        $locale = app()->getLocale();
+
+        if ($locale === 'en') {
+            $message = "Your verification code is:\n\n{$otp}\n\nDo not share this code with anyone.";
+        } else {
+            $message = "رمز التحقق الخاص بك هو:\n\n{$otp}\n\nلا تشارك هذا الرمز مع أي شخص.";
+        }
+
+        Log::info("Attempting to send WhatsApp OTP via Sidobe", [
+            'phone' => $phone,
+            'locale' => $locale,
+            'api_url' => $this->apiUrl,
+            'sender' => $this->senderPhone
+        ]);
 
         try {
             $response = Http::withHeaders([
                 'X-Secret-Key' => $this->apiKey,
                 'Content-Type' => 'application/json',
                 'Accept' => 'application/json',
-            ])->post($this->apiUrl . '/send-message', [
+            ])->timeout(10)
+              ->retry(3, 100)
+              ->post($this->apiUrl . '/send-message', [
                 'phone' => $phone,
                 'message' => $message,
                 'is_async' => true,
@@ -39,16 +54,27 @@ class WhatsappService
             $data = $response->json();
 
             if ($response->successful() && ($data['is_success'] ?? false)) {
+                Log::info("WhatsApp OTP sent successfully via Sidobe", [
+                    'phone' => $phone,
+                    'message_id' => $data['data']['id'] ?? null
+                ]);
                 $this->logMessage($phone, $message, $otp, 'sent', 'sidobe', $data['data']['id'] ?? null);
                 return ['success' => true];
             }
 
-            // فشل WhatsApp، جرب SMS
-            $error = $data['message'] ?? 'فشل الإرسال من المزود';
+            $error = $data['message'] ?? 'Failed sending message from Sidobe provider';
+            Log::error("WhatsApp OTP failed response from Sidobe", [
+                'phone' => $phone,
+                'status' => $response->status(),
+                'error' => $error
+            ]);
             $this->logMessage($phone, $message, $otp, 'failed', 'sidobe', null, $error);
 
         } catch (\Exception $e) {
-            // فشل WhatsApp، جرب SMS
+            Log::error("Exception occurred while sending WhatsApp OTP via Sidobe", [
+                'phone' => $phone,
+                'exception' => $e->getMessage()
+            ]);
             $this->logMessage($phone, $message, $otp, 'failed', 'sidobe', null, $e->getMessage());
         }
 

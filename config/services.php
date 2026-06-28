@@ -36,7 +36,7 @@ return [
     ],
 
     'sidobe' => [
-        'api_url' => env('SIDOBE_API_URL', 'https://api.sidobe.com/v1'),
+        'api_url' => env('SIDOBE_API_URL', 'https://api.sidobe.com/wa/v1'),
         'secret_key' => env('SIDOBE_SECRET_KEY'),
         'sender_phone' => env('SIDOBE_SENDER_PHONE'),
     ],

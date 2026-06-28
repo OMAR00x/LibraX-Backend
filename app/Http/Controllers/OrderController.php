@@ -84,12 +84,12 @@ class OrderController extends Controller
         $totalPrice = $book->price * $quantity;
 
         // التحقق من الرصيد إذا كان الدفع عبر المحفظة
-        if ($request->payment_method === 'wallet' && !config('app.test_wallet_mode', false)) {
+        if ($request->payment_method === 'wallet') {
             if ($user->wallet_balance < $totalPrice) {
                 return response()->json([
                     'status' => 'error',
-                    'message' => 'رصيدك غير كافٍ',
-                    'message_en' => 'Insufficient balance',
+                    'message' => 'الرصيد غير كافٍ لإتمام عملية الشراء.',
+                    'message_en' => 'Insufficient wallet balance.',
                     'required' => (float) $totalPrice,
                     'available' => (float) $user->wallet_balance,
                 ], 400);
@@ -108,6 +108,25 @@ class OrderController extends Controller
                 'payment_method' => $request->payment_method,
                 'status' => 'pending',
             ]);
+
+            // خصم المبلغ فوراً إذا كان الدفع عبر المحفظة
+            if ($request->payment_method === 'wallet') {
+                $balanceBefore = $user->wallet_balance;
+                if ($user->role !== 'customer') {
+                    $user->wallet_balance -= $totalPrice;
+                    $user->save();
+                }
+
+                WalletTransaction::create([
+                    'user_id' => $user->id,
+                    'type' => 'PURCHASE_DEBIT',
+                    'amount' => $totalPrice,
+                    'balance_before' => $balanceBefore,
+                    'balance_after' => $user->wallet_balance,
+                    'description' => "شراء كتاب: {$book->title}",
+                    'order_id' => $order->id,
+                ]);
+            }
 
             DB::commit();
 
@@ -196,6 +215,31 @@ class OrderController extends Controller
             $order->cancelled_at = now();
             $order->save();
 
+            // استرداد المبلغ للمحفظة إذا كان الدفع عبر المحفظة
+            if ($order->payment_method === 'wallet') {
+                // التحقق من عدم الاسترداد المكرر للطلب
+                $alreadyRefunded = WalletTransaction::where('order_id', $order->id)
+                    ->where('type', 'PURCHASE_REFUND')
+                    ->exists();
+
+                if (!$alreadyRefunded) {
+                    $customer = $order->customer;
+                    $balanceBefore = $customer->wallet_balance;
+                    $customer->wallet_balance += $order->price;
+                    $customer->save();
+
+                    WalletTransaction::create([
+                        'user_id' => $customer->id,
+                        'type' => 'PURCHASE_REFUND',
+                        'amount' => $order->price,
+                        'balance_before' => $balanceBefore,
+                        'balance_after' => $customer->wallet_balance,
+                        'description' => "استرداد قيمة كتاب (إلغاء الطلب): {$order->book->title}",
+                        'order_id' => $order->id,
+                    ]);
+                }
+            }
+
             DB::commit();
 
             // Notify customer of order cancellation
@@ -204,8 +248,12 @@ class OrderController extends Controller
                     'ORDER_CANCELLED',
                     "⚠️ تم إلغاء الطلب",
                     "⚠️ Order Cancelled",
-                    "⚠️ تم إلغاء طلبك لكتاب \"{$order->book->title}\".",
-                    "⚠️ Your request for \"{$order->book->title}\" has been cancelled.",
+                    $order->payment_method === 'wallet'
+                        ? "تم إلغاء طلبك وتمت إعادة المبلغ إلى محفظتك."
+                        : "⚠️ تم إلغاء طلبك لكتاب \"{$order->book->title}\".",
+                    $order->payment_method === 'wallet'
+                        ? "Your order has been cancelled and the amount has been refunded to your wallet."
+                        : "⚠️ Your request for \"{$order->book->title}\" has been cancelled.",
                     ['order_id' => $order->id, 'book_id' => $order->book_id]
                 ));
             } catch (\Exception $e) {

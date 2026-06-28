@@ -28,7 +28,7 @@ class WalletController extends Controller
             'data' => [
                 'balance' => (float) $user->wallet_balance,
                 'recent_transactions' => WalletTransactionResource::collection($transactions),
-                'test_wallet_mode' => (bool) config('app.test_wallet_mode', false),
+                'test_wallet_mode' => $user->role === 'customer' ? true : (bool) config('app.test_wallet_mode', false),
             ],
         ]);
     }
@@ -42,7 +42,7 @@ class WalletController extends Controller
         $user = $request->user();
 
         $request->validate([
-            'type' => 'nullable|in:charge,purchase,refund,earning',
+            'type' => 'nullable|in:charge,purchase,refund,earning,PURCHASE_DEBIT,PURCHASE_REFUND',
             'per_page' => 'nullable|integer|min:1|max:100',
         ]);
 

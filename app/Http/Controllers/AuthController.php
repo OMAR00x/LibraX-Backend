@@ -66,7 +66,7 @@ class AuthController extends Controller
                 'attempts' => $newAttempts,
                 'max_attempts' => 5,
                 'remaining' => max(0, 5 - $newAttempts)
-            ], 'تم إرسال كود التحقق بنجاح');
+            ], 'تم إرسال رمز التحقق عبر واتساب بنجاح');
         } catch (\Throwable $e) {
             if (isset($phone)) {
                 $this->otpService->decrementAttempts($phone);
@@ -108,7 +108,7 @@ class AuthController extends Controller
             'attempts' => $newAttempts,
             'max_attempts' => 5,
             'remaining' => max(0, 5 - $newAttempts)
-        ], 'تم إعادة إرسال كود التحقق بنجاح');
+        ], 'تم إعادة إرسال رمز التحقق عبر واتساب بنجاح');
     } catch (\Exception $e) {
         if (isset($phone)) {
             $this->otpService->decrementAttempts($phone);

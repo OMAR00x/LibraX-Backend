@@ -56,7 +56,7 @@ class PasswordResetController extends Controller
                 'attempts' => $newAttempts,
                 'max_attempts' => 5,
                 'remaining' => max(0, 5 - $newAttempts)
-            ], 'تم إرسال رمز التحقق بنجاح');
+            ], 'تم إرسال رمز التحقق عبر واتساب بنجاح');
         } catch (\Exception $e) {
             return $this->errorResponse('خطأ في إرسال رمز التحقق', ['error' => $e->getMessage()], 500);
         }
@@ -167,7 +167,7 @@ class PasswordResetController extends Controller
 
             return $this->successResponse([
                 'otp' => app()->isLocal() ? $otp : null,
-            ], 'تم إرسال كود التحقق بنجاح');
+            ], 'تم إرسال رمز التحقق عبر واتساب بنجاح');
         } catch (\Exception $e) {
             return $this->errorResponse('خطأ داخلي في السيرفر', ['error' => $e->getMessage()], 500);
         }

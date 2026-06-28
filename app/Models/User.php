@@ -145,4 +145,28 @@ class User extends Authenticatable
         return $this->role === 'admin';
     }
 
+    /**
+     * Get the user's wallet balance.
+     * Force infinite balance for customers.
+     */
+    public function getWalletBalanceAttribute($value)
+    {
+        if ($this->role === 'customer') {
+            return 99999999.00;
+        }
+        return $value;
+    }
+
+    /**
+     * Set the user's wallet balance.
+     * Keep infinite balance for customers.
+     */
+    public function setWalletBalanceAttribute($value)
+    {
+        if ($this->role === 'customer') {
+            $this->attributes['wallet_balance'] = 99999999.00;
+        } else {
+            $this->attributes['wallet_balance'] = $value;
+        }
+    }
 }

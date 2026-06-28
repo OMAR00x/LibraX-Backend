@@ -48,7 +48,7 @@ class OtpService
 
     public function generateOtp(): string
     {
-        return (string) rand(10000, 99999);
+        return (string) random_int(10000, 99999);
     }
 
     public function storeOtp(string $otp, string $phone): void
