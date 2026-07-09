@@ -23,8 +23,8 @@ class BookListResource extends JsonResource
             'average_rating' => (float) $this->average_rating,
             'total_ratings' => $this->total_ratings,
             'is_favorited' => $user ? $this->isFavoritedBy($user->id) : false,
-            'category_name_ar' => $this->category->name_ar,
-            'category_name_en' => $this->category->name_en,
+            'category_name_ar' => $this->category?->name_ar ?? 'تصنيف غير معروف',
+            'category_name_en' => $this->category?->name_en ?? 'Unknown Category',
             'library_name' => $this->libraryOwner?->library_name ?? 'مكتبة غير معروفة',
         ];
     }

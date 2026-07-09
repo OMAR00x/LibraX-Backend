@@ -18,13 +18,14 @@ class FavoriteController extends Controller
         $user = $request->user();
 
         $favorites = Favorite::where('user_id', $user->id)
+            ->whereHas('book') // Filter out soft-deleted or non-existent books
             ->with(['book.category', 'book.libraryOwner'])
             ->latest()
             ->paginate(20);
 
         $books = $favorites->map(function ($favorite) {
             return $favorite->book;
-        });
+        })->filter();
 
         return response()->json([
             'status' => 'success',
