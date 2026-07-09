@@ -340,6 +340,7 @@ class BookInteractionController extends Controller
 
         // Simulate some dynamic daily active minutes based on progresses for a beautiful chart
         $progresses = ReadingProgress::where('user_id', $userId)
+            ->whereHas('book')
             ->with('book')
             ->orderBy('updated_at', 'desc')
             ->take(10)
@@ -365,12 +366,18 @@ class BookInteractionController extends Controller
             $weeklyDistribution[$arabicDay] = min(180, ($weeklyDistribution[$arabicDay] ?? 0) + $progMinutes);
 
             $activityLogs[] = [
+                'book_id' => $prog->book_id,
                 'book_title' => $prog->book->title,
                 'author' => $prog->book->author,
                 'last_page' => $prog->last_page,
                 'progress_percent' => (float)$prog->progress_percent,
                 'minutes_read' => $progMinutes,
                 'date' => $prog->updated_at->format('Y-m-d H:i'),
+                'pdf_file' => $prog->book->pdf_file,
+                'audio_file' => $prog->book->audio_file,
+                'description' => $prog->book->description,
+                'category_name' => $prog->book->category?->name,
+                'page_count' => $prog->book->page_count,
             ];
         }
 
