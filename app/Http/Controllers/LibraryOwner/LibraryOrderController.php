@@ -171,8 +171,8 @@ class LibraryOrderController extends Controller
                     'ORDER_APPROVED',
                     "✅ تم قبول الطلب",
                     "✅ Order Approved",
-                    "✅ تم قبول طلبك بنجاح.",
-                    "✅ Your request has been approved successfully.",
+                    "✅ تم قبول طلبك لشراء كتاب: \"{$order->book->title}\" بنجاح.",
+                    "✅ Your request to buy the book \"{$order->book->title}\" has been approved.",
                     ['order_id' => $order->id, 'book_id' => $order->book_id]
                 ));
             } catch (\Exception $e) {
